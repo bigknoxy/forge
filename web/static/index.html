@@ -1,0 +1,619 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>FORGE</title>
+  <style>
+    :root{ --bg:#f5f7fb; --fg:#0f1724; --panel:#ffffff; --muted:#6b7280; --accent:#0b66a6; --accent-2:#2b8fd6 }
+    body { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; display: flex; height: 100vh; margin: 0; background:linear-gradient(180deg,#eef4fb, #f7fbff); color:var(--fg); }
+    body.dark{ --bg:#071019; --fg:#e6eef6; --panel:#071019; --muted:#9fb0c8; --accent:#1e90ff; background:linear-gradient(180deg,#05202b,#071019) }
+    #left { width: 60%; padding: 18px; border-right: 1px solid rgba(20,40,60,0.05); box-sizing: border-box }
+    #right { width: 40%; padding: 18px; box-sizing: border-box }
+    h2,h3 { margin:6px 0; color:var(--fg) }
+    #chat { height: 55vh; overflow: auto; border-radius:8px; box-shadow: 0 2px 6px rgba(11,22,33,0.04); padding: 12px; background: var(--panel); border:1px solid rgba(11,22,33,0.04) }
+    #status { height: 30vh; overflow: auto; border-radius:8px; box-shadow: 0 2px 6px rgba(11,22,33,0.04); padding: 12px; background:var(--panel); border:1px solid rgba(11,22,33,0.04) }
+    #logs { height: 30vh; overflow:auto; border-radius:8px; box-shadow: 0 2px 6px rgba(11,22,33,0.04); padding:12px; background:var(--panel); border:1px solid rgba(11,22,33,0.04) }
+    #input { margin-top: 12px; display:flex; gap:8px; align-items:center }
+    input[type=text], input[id=msg] { padding:8px 10px; border-radius:6px; border:1px solid #d1d5db; flex:1 }
+    select { padding:6px; border-radius:6px; border:1px solid #e2e8f0 }
+    .btn { padding:8px 12px; margin:4px; cursor:pointer; border-radius:6px; background:var(--accent); color:#fff; border:none; box-shadow:0 1px 0 rgba(0,0,0,0.05); transition: transform 0.08s ease, opacity 0.12s ease }
+    .btn.secondary { background:#fff; color:var(--fg); border:1px solid #e6eef6; transition: transform 0.08s ease, opacity 0.12s ease }
+    .btn.secondary:disabled { opacity:0.5; cursor:default }
+    .btn:hover { transform: translateY(-1px) }
+    .small { font-size: 12px; color:var(--muted) }
+    .log-row { opacity: 0; animation: fadeIn 220ms ease forwards; will-change: opacity, transform; backface-visibility: hidden }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px) } to { opacity: 1; transform: translateY(0) } }
+    #metrics { height:20vh; overflow:auto; border-radius:8px; padding:10px; background:var(--panel); border:1px solid rgba(11,22,33,0.04) }
+    #latencyChart { width:100%; height:120px; background:transparent; display:block }
+    .modal { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); background:var(--panel); border-radius:8px; padding:16px; z-index:1000; max-width:80%; max-height:80%; overflow:auto; box-shadow: 0 12px 40px rgba(2,6,23,0.6) }
+    .overlay { position:fixed; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:999 }
+    .flex { display:flex; gap:8px; align-items:center }
+    .filters { margin:8px 0 }
+    a { color:var(--accent); text-decoration:none }
+    ul { padding-left:18px }
+    li { margin:6px 0 }
+    .badge { display:inline-block; padding:2px 8px; border-radius:12px; font-size:12px; color:#fff; margin-left:6px }
+    .badge.ok { background:#16a34a }
+    .badge.warn { background:#f59e0b }
+    .badge.fail { background:#ef4444 }
+    .progress-bar { background: rgba(2,6,23,0.04); height:8px; border-radius:6px; overflow:hidden }
+    .progress-inner { height:100%; background: linear-gradient(90deg,var(--accent),var(--accent-2)); width:0%; transition: width 260ms ease }
+  </style>
+</head>
+<body>
+  <div id="left">
+    <h2>Chat with Henry</h2>
+    <div id="chat" aria-live="polite"></div>
+    <div id="input">
+      <input id="msg" style="width:70%" placeholder="Message to Henry" />
+      <button id="send" class="btn">Send</button>
+      <button id="clearChat" class="btn">Clear</button>
+    </div>
+    <h3>LLM Metrics (recent)</h3>
+    <div class="flex">
+      <button id="refreshMetrics" class="btn">Refresh Metrics</button>
+      <label class="small"><input type="checkbox" id="autoMetrics" /> Auto-refresh</label>
+      <label class="small">Backend: <select id="metricBackend"><option value="all">All</option><option>ollama</option><option>llamacpp</option><option>openrouter</option></select></label>
+      <label class="small">Type: <select id="metricType"><option value="all">All</option><option value="llm_call">llm_call</option><option value="llm_error">llm_error</option><option value="llm_semaphore">llm_semaphore</option></select></label>
+    </div>
+    <canvas id="latencyChart"></canvas>
+    <div id="metrics"></div>
+  </div>
+  <div id="right">
+    <h2>Projects</h2>
+    <div class="flex">
+      <button id="refreshProjects" class="btn">Refresh Projects</button>
+      <button id="createProject" class="btn secondary" disabled>Create</button>
+    </div>
+    <div id="projectsPanel" style="max-height:18vh; overflow:auto; margin-bottom:8px; padding:6px; background:var(--panel); border-radius:6px; border:1px solid rgba(11,22,33,0.04)"></div>
+    <h2>System Status</h2>
+    <div class="flex">
+      <button id="refreshHealth" class="btn">Refresh Health</button>
+      <button id="refreshStatus" class="btn">Refresh Projects/Tasks</button>
+      <button id="darkToggle" class="btn">Toggle Dark</button>
+    </div>
+    <div id="status"></div>
+    <h3>Live Logs</h3>
+    <div class="flex">
+      <button id="startStream" class="btn">Start Stream</button>
+      <button id="stopStream" class="btn">Stop Stream</button>
+      <button id="pauseStream" class="btn secondary">Pause</button>
+      <span id="bufferCount" class="small" style="margin-left:8px">buffer: 0</span>
+    </div>
+    <div style="margin:8px 0;" class="flex" style="align-items:center">
+      <label class="small">Agent: <select id="agentSelect"><option value="all">all</option></select></label>
+      <div style="margin-left:8px; display:flex; gap:8px; align-items:center">
+        <button id="prevPage" class="btn secondary">◀</button>
+        <button id="nextPage" class="btn secondary">▶</button>
+        <span id="pagingInfo" class="small" style="margin-left:8px">Showing 0 items</span>
+      </div>
+    </div>
+    <div id="logs" style="position:relative; overflow:auto; height:30vh; border-radius:8px; padding:6px; background:var(--panel); border:1px solid rgba(11,22,33,0.04)"></div>
+  </div>
+
+  <div id="modalRoot"></div>
+
+  <script>
+    const chatEl = document.getElementById('chat')
+    const statusEl = document.getElementById('status')
+    const logsEl = document.getElementById('logs')
+    const metricsEl = document.getElementById('metrics')
+    const latencyCanvas = document.getElementById('latencyChart')
+    const metricBackend = document.getElementById('metricBackend')
+    const metricType = document.getElementById('metricType')
+    let es = null
+    let metricsInterval = null
+    let latestMetrics = []
+    let tasksCache = []
+
+    // Dark mode persistence
+    const darkToggle = document.getElementById('darkToggle')
+    function applyDarkPreference(){
+      const dark = localStorage.getItem('forge.dark') === '1'
+      document.body.classList.toggle('dark', dark)
+    }
+    darkToggle.onclick = ()=>{ const cur = document.body.classList.toggle('dark'); localStorage.setItem('forge.dark', cur? '1':'0') }
+    applyDarkPreference()
+
+    document.getElementById('send').onclick = async ()=>{
+      const msg = document.getElementById('msg').value
+      if(!msg) return
+      appendChat('You', msg)
+      try{
+        const res = await fetch('/api/chat', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({message: msg})})
+        const j = await res.json()
+        appendChat('Henry', j.response || JSON.stringify(j))
+      }catch(e){
+        appendChat('System','Error contacting API: '+e)
+      }
+      document.getElementById('msg').value=''
+    }
+    document.getElementById('clearChat').onclick = ()=>{ chatEl.innerHTML = '' }
+
+    function appendChat(who, text){
+      const p = document.createElement('div')
+      p.innerHTML = '<b>'+who+':</b> '+(text||'')
+      chatEl.appendChild(p)
+      chatEl.scrollTop = chatEl.scrollHeight
+    }
+
+    async function fetchHealth(){
+      try{
+        const res = await fetch('/api/health')
+        const j = await res.json()
+        renderHealth(j)
+      }catch(e){
+        statusEl.innerHTML = '<div class="small">Health fetch error: '+e+'</div>'
+      }
+    }
+
+    async function fetchStatus(page=0,pageSize=10){
+      try{
+        const res = await fetch('/api/status')
+        const j = await res.json()
+        tasksCache = j.tasks || []
+        renderStatusPage(page,pageSize)
+      }catch(e){
+        statusEl.innerHTML = '<div class="small">Status fetch error: '+e+'</div>'
+      }
+    }
+
+    function renderHealth(h){
+      if(!h || h.status!=='ok'){
+        statusEl.innerHTML = '<div class="small">Health check failed</div>'
+        return
+      }
+      let html = ''
+      html += '<h4>LLM Backends</h4>'
+      const back = h.llm_backends||{}
+      // Only render actual backend entries (those with an 'ok' boolean). Other keys (circuit, *_concurrency) are handled separately.
+      const backendKeys = Object.keys(back).filter(k => back[k] && typeof back[k].ok === 'boolean')
+      for(const k of backendKeys){
+        try{
+          const ok = !!back[k].ok
+          const models = Array.isArray(back[k].models) ? back[k].models.length : 0
+          html += `<div><b>${k}</b>: <span class="badge ${ok? 'ok':'fail'}">${ok? 'OK':'FAIL'}</span>`
+          if(models) html += ` <span class="small">(${models} models)</span>`
+          html += '</div>'
+        }catch(e){}
+      }
+      // Render breaker state and concurrency separately
+      if(back.circuit) {
+        html += '<h4>Breaker State</h4>'
+        html += '<pre class="small">'+JSON.stringify(back.circuit, null, 2)+'</pre>'
+      }
+      const ccKeys = ['llamacpp_concurrency','ollama_concurrency']
+      let concRendered = false
+      for(const ck of ccKeys){
+        if(back[ck]){
+          const c = back[ck]
+          const name = ck.replace('_concurrency','')
+          if(!concRendered){ html += '<h4>Concurrency</h4>'; concRendered = true }
+          let usageBadge = 'ok'
+          try{
+            if(c.in_use >= c.max) usageBadge = 'fail'
+            else if(c.in_use > 0) usageBadge = 'warn'
+            else usageBadge = 'ok'
+          }catch(e){ usageBadge = 'ok' }
+          html += `<div>${name}: ${c.in_use}/${c.max} in-use <span class="badge ${usageBadge}">${usageBadge.toUpperCase()}</span> <span class="small">(waiters:${c.waiters})</span></div>`
+        }
+      }
+      statusEl.innerHTML = html
+    }
+
+    function renderStatusPage(page,pageSize){
+      const total = tasksCache.length
+      const pages = Math.max(1, Math.ceil(total/pageSize))
+      const start = page*pageSize
+      const slice = tasksCache.slice(start, start+pageSize)
+      let html = ''
+      html += '<h4>Recent Tasks</h4>'
+      html += `<div class="small">showing ${start+1}-${Math.min(total,start+pageSize)} of ${total}</div>`
+      html += '<ul>' + slice.map(t=>`<li><a href="#" class="taskLink" data-id="${t.id}">${t.description}</a> <span class="small">(${t.assigned_to||''})</span></li>`).join('') + '</ul>'
+      html += '<div>'
+      for(let p=0;p<pages;p++) html += `<button class="btn pageBtn" data-page="${p}">${p+1}</button>`
+      html += '</div>'
+      statusEl.innerHTML = html
+      // Use event delegation to avoid attaching many listeners
+      statusEl.onclick = function(ev){
+        const t = ev.target
+        if(t && t.matches && t.matches('.taskLink')){ ev.preventDefault(); showTaskDetail(t.dataset.id); }
+        else if(t && t.matches && t.matches('.pageBtn')){ const p = parseInt(t.dataset.page); renderStatusPage(p,pageSize); }
+      }
+    }
+
+    function showTaskDetail(id){
+      const t = tasksCache.find(x=>String(x.id)===String(id))
+      if(!t) return
+      const overlay = document.createElement('div'); overlay.className='overlay'
+      const modal = document.createElement('div'); modal.className='modal'
+      modal.innerHTML = `<h3>Task ${t.id}</h3><pre class="small">${JSON.stringify(t,null,2)}</pre><div><button id="closeModal" class="btn">Close</button></div>`
+      document.body.appendChild(overlay); document.body.appendChild(modal)
+      document.getElementById('closeModal').onclick = ()=>{ document.body.removeChild(overlay); document.body.removeChild(modal) }
+    }
+
+    let _metricsFetchInFlight = false
+    async function fetchMetrics(){
+      if(_metricsFetchInFlight) return
+      _metricsFetchInFlight = true
+      try{
+        // if auto-refresh is enabled, prefer aggregate endpoint for the chart to reduce payload size
+        const auto = document.getElementById('autoMetrics') && document.getElementById('autoMetrics').checked
+        if(auto){
+          const res = await fetch('/api/llm_metrics/aggregate?window_minutes=5&bucket_ms=200')
+          if(!res.ok) throw new Error('aggregate fetch failed')
+          const agg = await res.json()
+          // draw histogram from aggregate
+          drawLatencyChartFromBuckets(agg)
+          // still fetch the lightweight recent metrics for details (but limit)
+          const res2 = await fetch('/api/llm_metrics')
+          const j = await res2.json()
+          latestMetrics = j.metrics||[]
+          requestAnimationFrame(()=>{ renderMetricsFiltered() })
+        }else{
+          const res = await fetch('/api/llm_metrics')
+          const j = await res.json()
+          latestMetrics = j.metrics||[]
+          requestAnimationFrame(()=>{ renderMetricsFiltered() })
+        }
+      }catch(e){
+        metricsEl.innerHTML = '<div class="small">Metrics fetch error: '+e+'</div>'
+      }finally{
+        _metricsFetchInFlight = false
+      }
+    }
+
+    // safe wrapper in case a naming collision occurs in the page globals
+
+    function renderMetricsFiltered(){
+      let items = latestMetrics.slice()
+      const b = metricBackend.value
+      const t = metricType.value
+      if(b && b!=='all') items = items.filter(i => (i.payload && i.payload.backend===b) || i.agent===b)
+      if(t && t!=='all') items = items.filter(i => i.action_type===t)
+      // schedule rendering/drawing in rAF to keep UI responsive
+      requestAnimationFrame(()=>{ renderMetrics(items); drawLatencyChart(items.slice(0,200)) })
+    }
+
+    function renderMetrics(items){
+      if(!items || items.length===0){ metricsEl.innerHTML = '<div class="small">No metrics</div>'; return }
+      const cap = 200
+      const frag = document.createDocumentFragment()
+      const slice = items.slice(0,cap)
+      for(const it of slice){
+        const p = it.payload || {}
+        const d = document.createElement('div')
+        const b = document.createElement('b')
+        b.textContent = it.timestamp
+        const meta = document.createElement('span')
+        meta.className = 'small'
+        meta.textContent = ` [${it.agent}/${it.action_type}] `
+        const desc = document.createTextNode(' ' + it.description + ' ')
+        const payload = document.createElement('span')
+        payload.className = 'small'
+        try{ payload.textContent = JSON.stringify(p) }catch(e){ payload.textContent = '' }
+        d.appendChild(b); d.appendChild(meta); d.appendChild(desc); d.appendChild(payload)
+        frag.appendChild(d)
+      }
+      metricsEl.innerHTML = ''
+      metricsEl.appendChild(frag)
+    }
+
+    function drawLatencyChart(items){
+      // legacy: draw from raw items
+      const ctx = latencyCanvas.getContext('2d')
+      const w = latencyCanvas.clientWidth
+      const h = latencyCanvas.clientHeight || 120
+      latencyCanvas.width = w; latencyCanvas.height = h
+      const lat = items.filter(i=>i.action_type==='llm_call' && i.payload && typeof i.payload.latency==='number').map(i=>i.payload.latency)
+      ctx.clearRect(0,0,w,h)
+      ctx.fillStyle = document.body.classList.contains('dark') ? '#3478b6' : '#0b66a6'
+      if(lat.length===0){ ctx.fillStyle='var(--muted)'; ctx.fillText('No latency data',10,20); return }
+      const max = Math.max(...lat,200)
+      const buckets = 10
+      const counts = new Array(buckets).fill(0)
+      for(const v of lat){ const b = Math.min(buckets-1, Math.floor((v/max)*buckets)); counts[b]++ }
+      const maxCount = Math.max(...counts)
+      const barW = Math.floor(w/buckets)
+      for(let i=0;i<buckets;i++){
+        const hbar = maxCount>0 ? Math.round((counts[i]/maxCount)*(h-20)) : 0
+        ctx.fillRect(i*barW+4, h-10-hbar, barW-6, hbar)
+        ctx.fillStyle='var(--muted)'
+        ctx.fillText(Math.round((i*(max/buckets)))+'ms', i*barW+6, h-2)
+        ctx.fillStyle = document.body.classList.contains('dark') ? '#3478b6' : '#0b66a6'
+      }
+    }
+
+    function drawLatencyChartFromBuckets(agg){
+      const ctx = latencyCanvas.getContext('2d')
+      const w = latencyCanvas.clientWidth
+      const h = latencyCanvas.clientHeight || 120
+      latencyCanvas.width = w; latencyCanvas.height = h
+      ctx.clearRect(0,0,w,h)
+      if(!agg || !agg.buckets || agg.buckets.length===0){ ctx.fillStyle='var(--muted)'; ctx.fillText('No latency data',10,20); return }
+      const buckets = agg.buckets
+      const maxCount = Math.max(...buckets.map(b=>b.count))
+      const barW = Math.floor(w / buckets.length)
+      ctx.fillStyle = document.body.classList.contains('dark') ? '#3478b6' : '#0b66a6'
+      for(let i=0;i<buckets.length;i++){
+        const b = buckets[i]
+        const hbar = maxCount>0 ? Math.round((b.count / maxCount) * (h-20)) : 0
+        ctx.fillRect(i*barW+4, h-10-hbar, Math.max(4, barW-6), hbar)
+        ctx.fillStyle='var(--muted)'
+        ctx.fillText(b.bucket_start_ms+'ms', i*barW+6, h-2)
+        ctx.fillStyle = document.body.classList.contains('dark') ? '#3478b6' : '#0b66a6'
+      }
+    }
+
+    document.getElementById('refreshHealth').addEventListener('click', fetchHealth)
+    document.getElementById('refreshStatus').addEventListener('click', function(){ fetchStatus(0,10) })
+    document.getElementById('refreshMetrics').addEventListener('click', fetchMetrics)
+
+    document.getElementById('autoMetrics').addEventListener('change', function(){
+      if (this.checked) {
+        metricsInterval = setInterval(fetchMetrics, 3000)
+      } else {
+        clearInterval(metricsInterval)
+        metricsInterval = null
+      }
+    })
+
+    metricBackend.addEventListener('change', renderMetricsFiltered)
+    metricType.addEventListener('change', renderMetricsFiltered)
+
+    document.getElementById('startStream').addEventListener('click', startStream)
+    document.getElementById('stopStream').addEventListener('click', stopStream)
+
+    // Paging-based log viewer (plain list). PAGE_SIZE is consistent for homepage and agent pages
+    const PAGE_SIZE = 50
+    let currentRows = []
+    let paused = false
+    let currentAgent = 'all'
+    let earliestId = null
+    let latestId = null
+    let hasPrev = false
+    let hasNext = false
+
+    let _prevRenderedIds = ''
+    function renderPageRows(){
+      // avoid unnecessary full re-renders which cause flicker when nothing changed
+      const ids = currentRows.map(r => r.id).join(',')
+      // still update nav state even if rows unchanged
+      document.getElementById('prevPage').disabled = !hasPrev
+      document.getElementById('nextPage').disabled = !hasNext
+      const info = document.getElementById('pagingInfo')
+      if(info) info.textContent = `Showing ${currentRows.length} items` + (earliestId? ' — earliest_id:'+earliestId : '')
+      if(ids === _prevRenderedIds) { return }
+      _prevRenderedIds = ids
+      // render currentRows (already newest-first)
+      const frag = document.createDocumentFragment()
+      for(const r of currentRows){
+        const d = document.createElement('div')
+        d.className = 'small log-row'
+        d.style.padding = '6px 4px'
+        d.style.borderBottom = '1px solid rgba(0,0,0,0.04)'
+        d.innerHTML = `<b>${r.timestamp}</b> <span class="small">[${r.agent}/${r.action_type}]</span> ${escapeHtml(r.description)} <span class="small">${escapeHtml(JSON.stringify(r.payload||{}))}</span>`
+        frag.appendChild(d)
+      }
+      // replaceChildren is cheaper than innerHTML = '' and avoids reparsing
+      logsEl.replaceChildren(frag)
+    }
+
+    function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+    // streaming: still provide SSE but we only append to view if agent filter allows
+    let es_queue = []
+    function handleIncomingLine(line){
+      let m = line.match(/^\[(.+?)\.log\]\s*(.*)$/)
+      let agent = null
+      if(m){ agent = m[1]; line = '['+agent+'.log] '+m[2] }
+      const selAgent = currentAgent
+      if(selAgent && selAgent !== 'all' && agent && selAgent !== agent) return
+      // if we're currently showing a paged list, and the new event is newer than latestId, prepend it
+      if(latestId === null || (m && agent && latestId && m && typeof m[0] !== 'undefined')){
+        // best-effort: refresh current page to include newest entries
+        loadPage({agent: currentAgent})
+      }
+    }
+
+    function startStream(){
+      if(es) return
+      es = new EventSource('/api/logs/all/stream')
+      es.onmessage = function(e){ handleIncomingLine(e.data) }
+      es.onerror = function(){ /* ignore */ }
+    }
+    function stopStream(){ if(es){ es.close(); es = null } }
+
+    // pause/resume control
+    document.getElementById('pauseStream').onclick = function(){ paused = !paused; this.textContent = paused ? 'Resume' : 'Pause'; }
+
+    // Load agent list and load recent
+    async function loadAgentList(){
+      try{
+        const res = await fetch('/api/logs')
+        const j = await res.json()
+        const sel = document.getElementById('agentSelect')
+        sel.innerHTML = '<option value="all">all</option>'
+        for(const f of (j.logs||[])){
+          const opt = document.createElement('option'); opt.value = f.replace(/\.log$/,''); opt.textContent = f; sel.appendChild(opt)
+        }
+      }catch(e){ }
+    }
+
+    // Projects UI: fetch and render project summary list
+    async function fetchProjects(){
+      try{
+        const res = await fetch('/api/projects')
+        if(!res.ok) return
+        const j = await res.json()
+        renderProjects(j.projects||[])
+      }catch(e){ console.error('fetchProjects error', e) }
+    }
+
+    function renderProjects(projects){
+      const panel = document.getElementById('projectsPanel')
+      if(!panel) return
+      const frag = document.createDocumentFragment()
+      for(const p of projects){
+        const d = document.createElement('div')
+        d.className = 'small'
+        d.style.padding = '6px'
+        d.style.borderBottom = '1px solid rgba(0,0,0,0.04)'
+        const pct = p.progress_pct || 0
+        const status = p.status || 'idle'
+        const badgeClass = status === 'done' ? 'ok' : (status === 'in_progress' ? 'warn' : (status === 'pending' ? 'warn' : 'small'))
+        d.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center">
+            <div><b>${escapeHtml(p.name)}</b><div class="small">${escapeHtml(p.description||'')}</div></div>
+            <div style="text-align:right">
+              <div class="small">${p.total_tasks||0} tasks</div>
+              <div style="margin-top:6px"><span class="badge ${badgeClass}">${escapeHtml(status)}</span></div>
+            </div>
+          </div>
+          <div style="margin-top:8px">
+            <div class="progress-bar" aria-hidden="true"><div class="progress-inner" style="width:${pct}%"></div></div>
+          </div>
+        `
+        d.dataset.projectId = p.id
+        d.onclick = function(){ fetchProjectDetail(this.dataset.projectId) }
+        frag.appendChild(d)
+      }
+      panel.innerHTML = ''
+      panel.appendChild(frag)
+    }
+
+    async function fetchProjectDetail(id){
+      try{
+        const res = await fetch('/api/projects/' + encodeURIComponent(id))
+        if(!res.ok) return
+        const j = await res.json()
+        renderProjectDetail(j.project, j.tasks||[])
+      }catch(e){ console.error('project detail error', e) }
+    }
+
+    function renderProjectDetail(project, tasks){
+      let html = ''
+      html += `<h4>Project: ${escapeHtml(project.name)}</h4>`
+      html += `<div class="small">${escapeHtml(project.description||'')}</div>`
+      html += `<div style="margin-top:8px"><button id="suggestMatches" class="btn secondary">Suggest Matches</button> <button id="assignSelected" class="btn" style="display:none">Assign Selected</button></div>`
+      html += '<div id="suggestions" class="small" style="margin-top:8px"></div>'
+      html += '<ul>'
+      for(const t of tasks){
+        html += `<li><b>#${t.id}</b> ${escapeHtml(t.description)} <span class="small">(${escapeHtml(t.status||'')})</span> <span class="small">[${escapeHtml(t.assigned_to||'')}]</span></li>`
+      }
+      html += '</ul>'
+      document.getElementById('status').innerHTML = html
+      // wire suggest matches button
+      const sugBtn = document.getElementById('suggestMatches')
+      if(sugBtn){
+        sugBtn.onclick = async function(){
+          const sid = project.id
+          try{
+            const res = await fetch('/api/projects/' + encodeURIComponent(sid) + '/suggest_matches')
+            if(!res.ok) throw new Error('suggest failed')
+            const j = await res.json()
+            renderSuggestions(j.candidates || [], sid)
+          }catch(e){ console.error('suggest error', e) }
+        }
+      }
+    }
+
+    function renderSuggestions(candidates, projectId){
+      const box = document.getElementById('suggestions')
+      if(!box) return
+      if(!candidates || candidates.length===0){ box.innerHTML = '<div class="small">No candidates found</div>'; return }
+      let html = '<form id="suggestForm">'
+      html += '<div class="small">Select tasks to assign:</div>'
+      for(const c of candidates.slice(0,100)){
+        const score = typeof c.score !== 'undefined' ? (' <span class="small">score:'+String(c.score)+'</span>') : ''
+        html += `<div style="margin:6px 0"><label><input type="checkbox" name="task" value="${c.id}" /> <b>#${c.id}</b> ${escapeHtml(c.description)} ${score} <span class="small">(${escapeHtml(c.status||'')})</span> <span class="small">[${escapeHtml(c.assigned_to||'')}]</span></label></div>`
+      }
+      html += '</form>'
+      html += '<div style="margin-top:6px"><button id="assignButton" class="btn">Assign Selected to Project</button></div>'
+      box.innerHTML = html
+      document.getElementById('assignButton').onclick = async function(){
+        const form = document.getElementById('suggestForm')
+        const checked = Array.from(form.querySelectorAll('input[name="task"]:checked')).map(x=>parseInt(x.value))
+        if(checked.length===0) return
+        try{
+          const res = await fetch('/api/projects/' + encodeURIComponent(projectId) + '/assign_tasks', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({task_ids: checked})})
+          if(!res.ok) throw new Error('assign failed')
+          const j = await res.json()
+          // refresh UI
+          await fetchProjects()
+          await fetchProjectDetail(projectId)
+        }catch(e){ console.error('assign error', e) }
+      }
+    }
+
+    document.getElementById('refreshProjects').addEventListener('click', fetchProjects)
+
+    function onAgentSelectChange(ev){
+      var a = ev.target.value
+      currentAgent = a
+      earliestId = null
+      latestId = null
+      hasPrev = false
+      hasNext = false
+      document.getElementById('prevPage').disabled = true
+      document.getElementById('nextPage').disabled = true
+      loadPage({ agent: a })
+    }
+    document.getElementById('agentSelect').addEventListener('change', onAgentSelectChange)
+
+    async function loadPage(params){
+      var agent = (params && params.agent) ? params.agent : 'all'
+      var beforeId = params && params.before_id ? params.before_id : null
+      var afterId = params && params.after_id ? params.after_id : null
+      var urlBase = (agent === 'all') ? '/api/logs/page' : '/api/logs/' + encodeURIComponent(agent) + '/page'
+      var qs = []
+      if (beforeId) { qs.push('before_id=' + encodeURIComponent(beforeId)) }
+      if (afterId) { qs.push('after_id=' + encodeURIComponent(afterId)) }
+      qs.push('limit=' + PAGE_SIZE)
+      var url = urlBase + (qs.length ? ('?' + qs.join('&')) : '')
+      try {
+        var res = await fetch(url)
+        if (!res.ok) { console.error('Page fetch failed', res.status); return }
+        var payload = await res.json()
+        currentRows = payload.rows || []
+        earliestId = payload.earliest_id || (currentRows.length ? currentRows[currentRows.length - 1].id : null)
+        latestId = payload.latest_id || (currentRows.length ? currentRows[0].id : null)
+        hasPrev = !!payload.has_prev
+        hasNext = !!payload.has_next
+        renderPageRows()
+      } catch (err) {
+        console.error('Page load error', err)
+      }
+    }
+
+    function onPrevPageClick(){
+      if (!hasPrev) { return }
+      loadPage({ agent: currentAgent, after_id: latestId })
+    }
+    function onNextPageClick(){
+      if (!hasNext) { return }
+      loadPage({ agent: currentAgent, before_id: earliestId })
+    }
+    document.getElementById('prevPage').addEventListener('click', onPrevPageClick)
+    document.getElementById('nextPage').addEventListener('click', onNextPageClick)
+
+    // initial load: load agent list, fetch a paged set of recent logs (50), then start stream
+    loadAgentList()
+    fetchHealth(); fetchStatus();
+    (async()=>{
+      try{
+        if(typeof fetchMetrics === 'function') { await fetchMetrics() }
+        else { const res = await fetch('/api/llm_metrics'); if(res.ok){ const j = await res.json(); latestMetrics = j.metrics||[]; requestAnimationFrame(()=>{ renderMetricsFiltered() }) } }
+      }catch(e){}
+      // fetch first page for homepage
+      try{
+        await loadPage({agent: 'all'})
+      }catch(e){}
+      // fetch projects for the sidebar
+      try{ await fetchProjects() }catch(e){}
+      // start SSE streaming afterwards to receive live updates (they'll be filtered by agent selection)
+      startStream()
+    })()
+  </script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+[Unit]
+Description=FORGE - Fully Orchestrated Reasoning and Generation Engine
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/code/forge
+EnvironmentFile=/root/code/forge/.env
+# Run uvicorn directly to avoid forking/main.py complexity under systemd
+ExecStart=/opt/forge/bin/forge-start
+# PIDFile created by the start wrapper
+PIDFile=/var/run/forge/forge.pid
+# Ensure a clean stop - forward SIGTERM to main process
+ExecStop=/bin/kill -s SIGTERM $MAINPID
+# Create runtime dir for pidfile if we ever add a wrapper
+ExecStartPre=/bin/mkdir -p /var/run/forge
+# Keep Restart conservative: on-failure keeps the service stopped when explicitly stopped
+Restart=on-failure
+RestartSec=5
+# Give the application a reasonable time to stop gracefully before SIGKILL
+TimeoutStopSec=30
+KillMode=control-group
+
+[Install]
+WantedBy=multi-user.target
