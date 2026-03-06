@@ -16,12 +16,15 @@ Table of contents
 - Changelog
 
 Quick start (Debian/LXC)
-1. Copy `.env` and populate credentials and models (OPENROUTER_API_KEY, GH_TOKEN, HENRY_MODEL, etc.)
-2. Run the installer as root:
+1. Copy `.env` from `.env.example` and populate credentials and models (OPENROUTER_API_KEY, GH_TOKEN, HENRY_MODEL, etc.):
+   cp .env.example .env && edit .env
+2. One-line install (recommended):
+   sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/bigknoxy/forge/main/install.sh)"
+3. Or run the installer locally:
    sudo ./install.sh
-3. Verify the service (systemd):
+4. Verify the service (systemd):
    sudo systemctl status forge
-4. Use the CLI for quick checks:
+5. Use the CLI for quick checks:
    forge status
    forge logs
 
