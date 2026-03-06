@@ -1,0 +1,65 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Pyenv
+.python-version
+
+# Virtualenvs
+venv/
+.env/
+.env
+.venv/
+/opt/forge-venv/
+
+# Installer artifacts
+*.egg
+pip-wheel-metadata/
+
+# Pytest
+.pytest_cache/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Data and runtime
+/data/
+/workspace/
+/var/run/forge/
+*.log
+
+# Node
+node_modules/
+
+# Tests artifacts
+tests/__pycache__/
+
+# Misc
+coverage.xml
+htmlcov/
+
+# keep secrets out
+.env
+.env.local
+.env.*.local
+
+# local systemd unit copy
+/etc/systemd/system/forge.service

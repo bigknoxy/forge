@@ -8,4 +8,4 @@
 - Updated systemd unit to use the start-wrapper and PIDFile; changed Restart policy to on-failure and increased TimeoutStopSec.
 - CLI actions (start/stop/pause-app/resume-app) are audited into the DB logs table when possible.
 - Added tests for maintenance mode and start/stop fallback.
-- Updated README with operational guidance.
+- Updated README with operational guidance and a one-line install.
