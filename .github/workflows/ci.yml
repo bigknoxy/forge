@@ -9,8 +9,16 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      # Ensure CI uses a writable DATA_DIR and fallback location for DB files
+      DATA_DIR: ${{ runner.temp }}/forge_data
+      FORGE_FALLBACK_DATA_DIR: ${{ runner.temp }}/forge_data
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare data dir
+        run: |
+          mkdir -p "$RUNNER_TEMP/forge_data"
+          ls -la "$RUNNER_TEMP/forge_data"
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
