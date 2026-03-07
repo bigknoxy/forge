@@ -9,16 +9,14 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      # Ensure CI uses a writable DATA_DIR and fallback location for DB files
-      DATA_DIR: ${{ runner.temp }}/forge_data
-      FORGE_FALLBACK_DATA_DIR: ${{ runner.temp }}/forge_data
     steps:
       - uses: actions/checkout@v4
-      - name: Prepare data dir
+      - name: Prepare data dir and export env
         run: |
           mkdir -p "$RUNNER_TEMP/forge_data"
           ls -la "$RUNNER_TEMP/forge_data"
+          echo "DATA_DIR=$RUNNER_TEMP/forge_data" >> $GITHUB_ENV
+          echo "FORGE_FALLBACK_DATA_DIR=$RUNNER_TEMP/forge_data" >> $GITHUB_ENV
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
