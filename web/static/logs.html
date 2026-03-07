@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FORGE — Logs</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='g' cx='0.3' cy='0.2'%3E%3Cstop offset='0' stop-color='%2300e0ff'/%3E%3Cstop offset='1' stop-color='%237b61ff'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='12' fill='url(%23g)'/%3E%3Ctext x='50%25' y='54%25' font-family='Playfair Display, serif' font-weight='700' font-size='28' text-anchor='middle' fill='%23010b12'%3EFG%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    /* reuse same theme as main */
+    :root{ --bg-900:#02060a; --bg-800:#071019; --muted:#9fb0c8; --accent:#00e0ff; --accent-2:#7b61ff; --glass-border:rgba(255,255,255,0.06); --glass-shadow:0 10px 30px rgba(2,6,23,0.6); --radius:12px; --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace }
+    *{box-sizing:border-box}
+    html,body{height:100%; margin:0; overflow-x:hidden}
+    body{ font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto; background: linear-gradient(180deg,var(--bg-800),var(--bg-900)); color:#dff7ff; padding:18px }
+    header{ display:flex; align-items:center; justify-content:space-between; max-width:1200px; margin:0 auto 18px }
+    .logo{ width:44px; height:44px; border-radius:10px; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:flex; align-items:center; justify-content:center; font-family:'Playfair Display', serif; font-weight:700; color:#021 }
+    .controls{ display:flex; gap:8px; align-items:center }
+    .btn{ padding:8px 12px; border-radius:10px; border:none; cursor:pointer; font-weight:600; color:#021; background:linear-gradient(90deg,var(--accent),var(--accent-2)) }
+    .panel{ background:rgba(255,255,255,0.02); border-radius:var(--radius); padding:12px; border:1px solid var(--glass-border); box-shadow:var(--glass-shadow); max-width:1200px; margin:0 auto }
+    #logs{ min-height:60vh; max-height:80vh; overflow:auto; padding:8px; font-family:var(--mono); font-size:13px }
+    .log-row{ padding:8px; border-bottom:1px dashed rgba(255,255,255,0.03) }
+    @media (max-width:520px){ body{ padding:12px } }
+  </style>
+</head>
+<body>
+  <header>
+    <div style="display:flex; align-items:center; gap:12px">
+      <div class="logo">FG</div>
+      <div>
+        <div style="font-family:'Playfair Display', serif; font-size:18px">FORGE</div>
+        <div style="font-size:12px; color:var(--muted)">Live logs • quick view</div>
+      </div>
+    </div>
+    <div class="controls">
+      <a href="/" class="btn" style="background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.04);">Back</a>
+      <button id="startStream" class="btn">Start</button>
+      <button id="stopStream" class="btn" style="background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.04);">Stop</button>
+    </div>
+  </header>
+  <main>
+    <div class="panel">
+      <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px">
+        <label style="font-size:13px; color:var(--muted)">Agent: <select id="agentSelect"><option value="all">all</option></select></label>
+        <div style="margin-left:auto; display:flex; gap:8px"><button id="prevPage" class="btn" style="background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.04);">◀</button><button id="nextPage" class="btn" style="background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.04);">▶</button></div>
+      </div>
+      <div id="logs">Loading logs…</div>
+    </div>
+  </main>
+
+  <script>
+    const logsEl = document.getElementById('logs')
+    const agentSelect = document.getElementById('agentSelect')
+    let es = null
+    const PAGE_SIZE = 100
+    let currentRows = []
+    let currentAgent = 'all'
+    let earliestId = null
+    let latestId = null
+    let hasPrev = false
+    let hasNext = false
+
+    async function loadAgentList(){
+      try{ const res = await fetch('/api/logs'); const j = await res.json(); agentSelect.innerHTML = '<option value="all">all</option>'; for(const f of (j.logs||[])){ const opt = document.createElement('option'); opt.value = f.replace(/\.log$/,''); opt.textContent = f; agentSelect.appendChild(opt) } }catch(e){}
+    }
+
+    async function loadPage(params){
+      var agent = (params && params.agent) ? params.agent : 'all'
+      var beforeId = params && params.before_id ? params.before_id : null
+      var afterId = params && params.after_id ? params.after_id : null
+      var urlBase = (agent === 'all') ? '/api/logs/page' : '/api/logs/' + encodeURIComponent(agent) + '/page'
+      var qs = []
+      if (beforeId) { qs.push('before_id=' + encodeURIComponent(beforeId)) }
+      if (afterId) { qs.push('after_id=' + encodeURIComponent(afterId)) }
+      qs.push('limit=' + PAGE_SIZE)
+      var url = urlBase + (qs.length ? ('?' + qs.join('&')) : '')
+      try { var res = await fetch(url); if(!res.ok){ logsEl.textContent = 'Failed to fetch'; return } var payload = await res.json(); currentRows = payload.rows || []; earliestId = payload.earliest_id || (currentRows.length ? currentRows[currentRows.length - 1].id : null); latestId = payload.latest_id || (currentRows.length ? currentRows[0].id : null); hasPrev = !!payload.has_prev; hasNext = !!payload.has_next; renderRows() }catch(err){ logsEl.textContent = 'Error loading' }
+    }
+
+    function renderRows(){ if(!currentRows || currentRows.length===0){ logsEl.textContent = 'No logs' ; return } const frag = document.createDocumentFragment(); for(const r of currentRows){ const d = document.createElement('div'); d.className = 'log-row'; d.innerHTML = `<b>${r.timestamp}</b> <span style="color:var(--muted)">[${r.agent}/${r.action_type}]</span> ${escapeHtml(r.description)} <span style="color:var(--muted)">${escapeHtml(JSON.stringify(r.payload||{}))}</span>`; frag.appendChild(d) } logsEl.innerHTML=''; logsEl.appendChild(frag) }
+
+    function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+    function startStream(){ if(es) return; es = new EventSource('/api/logs/all/stream'); es.onmessage = function(e){ /* simply reload the page snapshot when messages arrive */ loadPage({agent: currentAgent}) }; es.onerror = function(){ /* ignore */ } }
+    function stopStream(){ if(es){ es.close(); es = null } }
+
+    document.getElementById('startStream').addEventListener('click', startStream)
+    document.getElementById('stopStream').addEventListener('click', stopStream)
+    document.getElementById('prevPage').addEventListener('click', ()=>{ if(!hasPrev) return; loadPage({ agent: currentAgent, after_id: latestId }) })
+    document.getElementById('nextPage').addEventListener('click', ()=>{ if(!hasNext) return; loadPage({ agent: currentAgent, before_id: earliestId }) })
+    agentSelect.addEventListener('change', (e)=>{ currentAgent = e.target.value; loadPage({ agent: currentAgent }) })
+
+    (async()=>{ await loadAgentList(); await loadPage({agent:'all'}) })()
+  </script>
+</body>
+</html>

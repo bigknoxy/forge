@@ -1,0 +1,12 @@
+{
+  "name": "forge-ui-tests",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test:playwright": "node tests/playwright/test_ui.js",
+    "test:visual": "npx playwright test --config=playwright.config.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.40.0"
+  }
+}

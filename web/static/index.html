@@ -1,619 +1,298 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>FORGE</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>FORGE — Live Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='g' cx='0.3' cy='0.2'%3E%3Cstop offset='0' stop-color='%2300e0ff'/%3E%3Cstop offset='1' stop-color='%237b61ff'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='12' fill='url(%23g)'/%3E%3Ctext x='50%25' y='54%25' font-family='Playfair Display, serif' font-weight='700' font-size='28' text-anchor='middle' fill='%23010b12'%3EFG%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
   <style>
-    :root{ --bg:#f5f7fb; --fg:#0f1724; --panel:#ffffff; --muted:#6b7280; --accent:#0b66a6; --accent-2:#2b8fd6 }
-    body { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; display: flex; height: 100vh; margin: 0; background:linear-gradient(180deg,#eef4fb, #f7fbff); color:var(--fg); }
-    body.dark{ --bg:#071019; --fg:#e6eef6; --panel:#071019; --muted:#9fb0c8; --accent:#1e90ff; background:linear-gradient(180deg,#05202b,#071019) }
-    #left { width: 60%; padding: 18px; border-right: 1px solid rgba(20,40,60,0.05); box-sizing: border-box }
-    #right { width: 40%; padding: 18px; box-sizing: border-box }
-    h2,h3 { margin:6px 0; color:var(--fg) }
-    #chat { height: 55vh; overflow: auto; border-radius:8px; box-shadow: 0 2px 6px rgba(11,22,33,0.04); padding: 12px; background: var(--panel); border:1px solid rgba(11,22,33,0.04) }
-    #status { height: 30vh; overflow: auto; border-radius:8px; box-shadow: 0 2px 6px rgba(11,22,33,0.04); padding: 12px; background:var(--panel); border:1px solid rgba(11,22,33,0.04) }
-    #logs { height: 30vh; overflow:auto; border-radius:8px; box-shadow: 0 2px 6px rgba(11,22,33,0.04); padding:12px; background:var(--panel); border:1px solid rgba(11,22,33,0.04) }
-    #input { margin-top: 12px; display:flex; gap:8px; align-items:center }
-    input[type=text], input[id=msg] { padding:8px 10px; border-radius:6px; border:1px solid #d1d5db; flex:1 }
-    select { padding:6px; border-radius:6px; border:1px solid #e2e8f0 }
-    .btn { padding:8px 12px; margin:4px; cursor:pointer; border-radius:6px; background:var(--accent); color:#fff; border:none; box-shadow:0 1px 0 rgba(0,0,0,0.05); transition: transform 0.08s ease, opacity 0.12s ease }
-    .btn.secondary { background:#fff; color:var(--fg); border:1px solid #e6eef6; transition: transform 0.08s ease, opacity 0.12s ease }
-    .btn.secondary:disabled { opacity:0.5; cursor:default }
-    .btn:hover { transform: translateY(-1px) }
-    .small { font-size: 12px; color:var(--muted) }
-    .log-row { opacity: 0; animation: fadeIn 220ms ease forwards; will-change: opacity, transform; backface-visibility: hidden }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px) } to { opacity: 1; transform: translateY(0) } }
-    #metrics { height:20vh; overflow:auto; border-radius:8px; padding:10px; background:var(--panel); border:1px solid rgba(11,22,33,0.04) }
-    #latencyChart { width:100%; height:120px; background:transparent; display:block }
-    .modal { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); background:var(--panel); border-radius:8px; padding:16px; z-index:1000; max-width:80%; max-height:80%; overflow:auto; box-shadow: 0 12px 40px rgba(2,6,23,0.6) }
-    .overlay { position:fixed; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:999 }
-    .flex { display:flex; gap:8px; align-items:center }
-    .filters { margin:8px 0 }
-    a { color:var(--accent); text-decoration:none }
-    ul { padding-left:18px }
-    li { margin:6px 0 }
-    .badge { display:inline-block; padding:2px 8px; border-radius:12px; font-size:12px; color:#fff; margin-left:6px }
-    .badge.ok { background:#16a34a }
-    .badge.warn { background:#f59e0b }
-    .badge.fail { background:#ef4444 }
-    .progress-bar { background: rgba(2,6,23,0.04); height:8px; border-radius:6px; overflow:hidden }
-    .progress-inner { height:100%; background: linear-gradient(90deg,var(--accent),var(--accent-2)); width:0%; transition: width 260ms ease }
+    :root{ --bg-900:#02060a; --bg-800:#071019; --muted:#9fb0c8; --accent:#00e0ff; --accent-2:#7b61ff; --accent-warm:#ffb86b; --glass-border:rgba(255,255,255,0.06); --glass-shadow:0 10px 30px rgba(2,6,23,0.6); --radius:14px; --mono:ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace }
+    *{box-sizing:border-box}
+    html,body{height:100%; margin:0; overflow-x:hidden}
+    body{ font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, 'Helvetica Neue', Arial; background:radial-gradient(1200px 500px at 10% 10%, rgba(124,97,255,0.12), transparent 6%), radial-gradient(1000px 400px at 90% 80%, rgba(0,224,255,0.06), transparent 8%), linear-gradient(180deg,var(--bg-800),var(--bg-900)); color:#dff7ff; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; -webkit-tap-highlight-color:transparent; padding:18px; display:flex; flex-direction:column; gap:18px; min-height:100vh }
+    header.topbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; max-width:calc(100% - 36px); margin:0 auto }
+    .brand{ display:flex; gap:12px; align-items:center }
+    .logo{ width:56px; height:56px; border-radius:12px; background:linear-gradient(135deg,var(--accent),var(--accent-2)); box-shadow:0 6px 30px rgba(123,97,255,0.14); display:flex; align-items:center; justify-content:center; font-family:'Playfair Display', serif; font-weight:700; color:#021; transform:rotate(-8deg); flex:0 0 auto; overflow:hidden }
+    .title{ font-family:'Playfair Display', serif; font-size:20px }
+    .subtitle{ font-size:12px; color:var(--muted) }
+    main.app{ display:grid; grid-template-columns: 1fr 420px; gap:18px; align-items:start; width:100%; max-width:1400px; margin:0 auto; flex:1; box-sizing:border-box }
+    @media (max-width:820px){ main.app{ grid-template-columns:1fr } .logo{ width:46px; height:46px } .title{ font-size:18px } }
+    .panel{ background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:var(--radius); padding:14px; border:1px solid var(--glass-border); box-shadow:var(--glass-shadow); backdrop-filter: blur(6px) }
+
+    /* Prevent micro-overflow from long strings */
+    .panel, .controls, input, select, button, #chat, #logs, #metrics { max-width:100%; word-break:break-word }
+
+    /* Hero */
+    #left{ display:flex; flex-direction:column; gap:14px }
+    .hero{ display:flex; gap:18px; align-items:center; justify-content:space-between; padding:18px; border-radius:12px; overflow:hidden; background:linear-gradient(120deg, rgba(0,224,255,0.06), rgba(123,97,255,0.04)); border:1px solid rgba(255,255,255,0.03) }
+    .hero .copy{ max-width:70% }
+    .hero h1{ margin:0; font-family:'Playfair Display', serif; font-size:28px }
+    .hero p{ margin:6px 0 0 0; color:var(--muted) }
+    .cta{ display:flex; gap:10px; align-items:center }
+    .btn{ padding:10px 14px; border-radius:10px; border:none; cursor:pointer; font-weight:600; color:#021; background:linear-gradient(90deg,var(--accent),var(--accent-2)); box-shadow:0 8px 30px rgba(0,224,255,0.08); transition: transform .12s cubic-bezier(.2,.9,.3,1), box-shadow .12s }
+    .btn.ghost{ background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.04) }
+    .btn:active{ transform: translateY(1px) scale(0.997) }
+
+    /* Chat */
+    #chat{ min-height:220px; max-height:46vh; overflow:auto; padding:14px; border-radius:10px }
+    .message{ margin:8px 0; padding:10px 12px; border-radius:10px; display:inline-block; max-width:88%; box-shadow:0 6px 18px rgba(2,6,23,0.6) }
+    .from-you{ background:linear-gradient(180deg, rgba(0,224,255,0.08), rgba(0,224,255,0.03)); color:#001; align-self:flex-end }
+    .from-henry{ background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); color:#dff7ff }
+
+    #input{ display:flex; gap:10px; align-items:center }
+    #msg{ flex:1; padding:12px 14px; border-radius:12px; background:transparent; border:1px solid rgba(255,255,255,0.04); color:inherit }
+
+    #metrics{ padding:10px; display:flex; flex-direction:column; gap:10px }
+    .stat-row{ display:flex; gap:12px; align-items:center }
+    .stat{ flex:1; padding:10px; border-radius:10px; background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00)); border:1px solid rgba(255,255,255,0.02) }
+    .small{ font-size:12px; color:var(--muted) }
+
+    #right{ display:flex; flex-direction:column; gap:12px }
+    #projectsPanel .project{ padding:12px; border-radius:10px; display:flex; justify-content:space-between; gap:8px; align-items:center; border:1px solid rgba(255,255,255,0.02); background:linear-gradient(180deg, rgba(0,0,0,0.02), transparent) }
+    .badge{ display:inline-block; padding:6px 10px; border-radius:999px; font-size:12px; color:#fff; background:var(--accent-warm); font-weight:700 }
+
+    #logs{ min-height:220px; max-height:40vh; overflow:auto; padding:10px }
+    .log-row{ padding:8px; border-bottom:1px dashed rgba(255,255,255,0.02); font-family:var(--mono); font-size:13px }
+
+    .controls{ display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+    .modal{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); background:var(--panel); border-radius:12px; padding:18px; z-index:1000; max-width:92%; max-height:86%; overflow:auto; box-shadow:0 12px 60px rgba(2,6,23,0.8) }
+    .overlay{ position:fixed; inset:0; background:linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.4)); z-index:999 }
+
+    .fadeIn{ opacity:0; transform: translateY(6px); animation: fadeIn 360ms cubic-bezier(.2,.9,.3,1) forwards }
+    @keyframes fadeIn{ to{ opacity:1; transform:none } }
+
+    @media (max-width:520px){ body{ padding:12px } .hero .copy{ max-width:100% } .hero{ flex-direction:column; align-items:flex-start } .cta{ width:100%; justify-content:space-between } #msg{ padding:10px } #left,#right{ width:100% } }
+    button:focus, [role="button"]:focus, input:focus{ outline: 3px solid rgba(0,224,255,0.14); outline-offset:3px }
+
+    /* Micro-interactions */
+    .project{ transition: transform .18s cubic-bezier(.2,.9,.3,1), box-shadow .18s }
+    .project:hover{ transform: translateY(-6px) scale(1.01); box-shadow:0 18px 40px rgba(123,97,255,0.12) }
+    .stat:hover{ transform: translateY(-4px); box-shadow:0 12px 30px rgba(0,224,255,0.04) }
+
+    /* Toast */
+    #toast{ position:fixed; left:50%; transform:translateX(-50%); bottom:20px; z-index:2000; display:flex; gap:8px; align-items:center }
+    .toast{ padding:10px 14px; border-radius:10px; font-weight:600; color:#021; background:linear-gradient(90deg,var(--accent),var(--accent-2)); box-shadow:0 10px 30px rgba(2,6,23,0.6); }
+    .toast.warn{ background:linear-gradient(90deg,#ffb86b,#ff6b6b) }
+    .toast.error{ background:linear-gradient(90deg,#ff6b6b,#7b61ff); color:#fff }
   </style>
 </head>
 <body>
-  <div id="left">
-    <h2>Chat with Henry</h2>
-    <div id="chat" aria-live="polite"></div>
-    <div id="input">
-      <input id="msg" style="width:70%" placeholder="Message to Henry" />
-      <button id="send" class="btn">Send</button>
-      <button id="clearChat" class="btn">Clear</button>
-    </div>
-    <h3>LLM Metrics (recent)</h3>
-    <div class="flex">
-      <button id="refreshMetrics" class="btn">Refresh Metrics</button>
-      <label class="small"><input type="checkbox" id="autoMetrics" /> Auto-refresh</label>
-      <label class="small">Backend: <select id="metricBackend"><option value="all">All</option><option>ollama</option><option>llamacpp</option><option>openrouter</option></select></label>
-      <label class="small">Type: <select id="metricType"><option value="all">All</option><option value="llm_call">llm_call</option><option value="llm_error">llm_error</option><option value="llm_semaphore">llm_semaphore</option></select></label>
-    </div>
-    <canvas id="latencyChart"></canvas>
-    <div id="metrics"></div>
-  </div>
-  <div id="right">
-    <h2>Projects</h2>
-    <div class="flex">
-      <button id="refreshProjects" class="btn">Refresh Projects</button>
-      <button id="createProject" class="btn secondary" disabled>Create</button>
-    </div>
-    <div id="projectsPanel" style="max-height:18vh; overflow:auto; margin-bottom:8px; padding:6px; background:var(--panel); border-radius:6px; border:1px solid rgba(11,22,33,0.04)"></div>
-    <h2>System Status</h2>
-    <div class="flex">
-      <button id="refreshHealth" class="btn">Refresh Health</button>
-      <button id="refreshStatus" class="btn">Refresh Projects/Tasks</button>
-      <button id="darkToggle" class="btn">Toggle Dark</button>
-    </div>
-    <div id="status"></div>
-    <h3>Live Logs</h3>
-    <div class="flex">
-      <button id="startStream" class="btn">Start Stream</button>
-      <button id="stopStream" class="btn">Stop Stream</button>
-      <button id="pauseStream" class="btn secondary">Pause</button>
-      <span id="bufferCount" class="small" style="margin-left:8px">buffer: 0</span>
-    </div>
-    <div style="margin:8px 0;" class="flex" style="align-items:center">
-      <label class="small">Agent: <select id="agentSelect"><option value="all">all</option></select></label>
-      <div style="margin-left:8px; display:flex; gap:8px; align-items:center">
-        <button id="prevPage" class="btn secondary">◀</button>
-        <button id="nextPage" class="btn secondary">▶</button>
-        <span id="pagingInfo" class="small" style="margin-left:8px">Showing 0 items</span>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">FG</div>
+      <div>
+        <div class="title">FORGE</div>
+        <div class="subtitle">Live operations • LLM observability</div>
       </div>
     </div>
-    <div id="logs" style="position:relative; overflow:auto; height:30vh; border-radius:8px; padding:6px; background:var(--panel); border:1px solid rgba(11,22,33,0.04)"></div>
-  </div>
+    <div class="controls">
+      <button id="refreshAll" class="btn ghost">Refresh</button>
+      <a href="/static/logs.html" class="btn ghost" style="text-decoration:none;display:inline-flex;align-items:center;">Logs</a>
+      <button id="darkToggle" class="btn ghost">Toggle Theme</button>
+      <div id="sseStatus" class="small" role="status" aria-live="polite" style="margin-left:8px; padding:6px 8px; border-radius:8px; background:rgba(255,255,255,0.02);">SSE: disconnected</div>
+      <button id="startStreamTop" class="btn">Live</button>
+    </div>
+  </header>
+
+  <main class="app">
+    <section id="left">
+      <div class="hero panel">
+        <div class="copy">
+          <h1>Command the forge — real‑time insights, humanized.</h1>
+          <p class="small">Monitor model calls, projects, and logs in a single view — built for speed and mobile. Dark UI with energetic color pops keeps attention where it matters.</p>
+        </div>
+        <div class="cta">
+          <button id="openDocs" class="btn ghost">Docs</button>
+          <button id="sendQuick" class="btn">New Message</button>
+        </div>
+      </div>
+
+      <div class="panel" aria-live="polite">
+        <h3 style="margin:0 0 8px 0">Chat with Henry</h3>
+        <div id="chat" aria-live="polite"></div>
+        <div id="input" style="margin-top:12px">
+          <input id="msg" placeholder="Message to Henry" aria-label="Message to Henry" />
+          <button id="send" class="btn">Send</button>
+          <button id="clearChat" class="btn ghost">Clear</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3 style="margin:0 0 8px 0">LLM Metrics (recent)</h3>
+        <div class="controls" style="margin-bottom:8px;">
+          <button id="refreshMetrics" class="btn ghost" aria-label="Refresh metrics">Refresh Metrics</button>
+          <label class="small"><input type="checkbox" id="autoMetrics" /> Auto-refresh</label>
+          <label class="small">Backend: <select id="metricBackend"><option value="all">All</option><option>ollama</option><option>llamacpp</option><option>openrouter</option></select></label>
+          <label class="small">Type: <select id="metricType"><option value="all">All</option><option value="llm_call">llm_call</option><option value="llm_error">llm_error</option><option value="llm_semaphore">llm_semaphore</option></select></label>
+        </div>
+        <canvas id="latencyChart" aria-hidden="true" style="width:100%; height:120px; display:block"></canvas>
+        <div id="metrics"></div>
+        <div id="metricsControls" style="display:flex; justify-content:center; margin-top:8px"></div>
+      </div>
+    </section>
+
+    <aside id="right">
+      <div class="panel">
+        <h3 style="margin:0 0 8px 0">Projects</h3>
+        <div class="controls" style="margin-bottom:8px">
+          <button id="refreshProjects" class="btn ghost">Refresh</button>
+          <button id="createProject" class="btn ghost" disabled>Create</button>
+        </div>
+        <div id="projectsPanel" style="max-height:22vh; overflow:auto; padding:6px"></div>
+      </div>
+
+      <div class="panel">
+        <h3 style="margin:0 0 8px 0">System Status</h3>
+        <div class="controls" style="margin-bottom:8px">
+          <button id="refreshHealth" class="btn ghost" aria-label="Refresh health">Health</button>
+          <button id="refreshStatus" class="btn ghost">Status</button>
+        </div>
+        <div id="status"></div>
+      </div>
+
+      <div class="panel">
+        <h3 style="margin:0 0 8px 0">Live Logs</h3>
+        <div class="controls" style="margin-bottom:8px">
+          <button id="startStream" class="btn" aria-label="Start live stream">Start Stream</button>
+          <button id="stopStream" class="btn ghost" aria-label="Stop live stream">Stop</button>
+          <button id="pauseStream" class="btn ghost" aria-label="Pause live stream">Pause</button>
+          <span id="bufferCount" class="small" style="margin-left:8px">buffer: 0</span>
+        </div>
+        <div style="margin:8px 0;" class="controls">
+          <label class="small">Agent: <select id="agentSelect"><option value="all">all</option></select></label>
+          <div style="margin-left:8px; display:flex; gap:8px; align-items:center">
+            <button id="prevPage" class="btn ghost">◀</button>
+            <button id="nextPage" class="btn ghost">▶</button>
+            <span id="pagingInfo" class="small" style="margin-left:8px">Showing 0 items</span>
+          </div>
+        </div>
+        <div id="logs"></div>
+      </div>
+    </aside>
+  </main>
 
   <div id="modalRoot"></div>
+  <div id="toast" aria-live="polite" aria-atomic="true"></div>
 
   <script>
-    const chatEl = document.getElementById('chat')
-    const statusEl = document.getElementById('status')
-    const logsEl = document.getElementById('logs')
-    const metricsEl = document.getElementById('metrics')
-    const latencyCanvas = document.getElementById('latencyChart')
-    const metricBackend = document.getElementById('metricBackend')
-    const metricType = document.getElementById('metricType')
+    // Utility: toast
+    function showToast(msg, type='info', timeout=4000){ try{ const root = document.getElementById('toast'); const t = document.createElement('div'); t.className = 'toast' + (type==='warn' ? ' warn' : (type==='error' ? ' error' : '')); t.textContent = msg; root.appendChild(t); setTimeout(()=>{ t.style.transition='opacity 260ms'; t.style.opacity='0'; setTimeout(()=>root.removeChild(t),300) }, timeout) }catch(e){} }
+
+    // fetch with retry and exponential backoff
+    async function fetchWithRetry(url, opts={}, retries=2, backoff=250){ try{ const res = await fetch(url, opts); if(!res.ok) throw new Error('HTTP '+res.status); return res }catch(err){ if(retries>0){ await new Promise(r=>setTimeout(r, backoff)); return fetchWithRetry(url, opts, retries-1, backoff*1.8) } throw err } }
+
+    // safe element helpers to avoid early runtime errors if DOM shape changes
+    function $id(id){ return document.getElementById(id) }
+    function safeAddListener(id, ev, handler){ try{ const el = $id(id); if(!el) return; if(typeof el.addEventListener === 'function') el.addEventListener(ev, handler); else if(typeof el.onclick === 'undefined' && ev==='click') el.onclick = handler }catch(e){ console.warn('safeAddListener failed', id, e) } }
+
+    const chatEl = $id('chat')
+    const statusEl = $id('status')
+    const logsEl = $id('logs')
+    const metricsEl = $id('metrics')
+    const metricsControls = $id('metricsControls')
+    const latencyCanvas = $id('latencyChart')
+    const metricBackend = $id('metricBackend')
+    const metricType = $id('metricType')
+    const sseStatusEl = $id('sseStatus')
+
     let es = null
     let metricsInterval = null
     let latestMetrics = []
     let tasksCache = []
+    let coalescedEvents = 0
 
-    // Dark mode persistence
-    const darkToggle = document.getElementById('darkToggle')
-    function applyDarkPreference(){
-      const dark = localStorage.getItem('forge.dark') === '1'
-      document.body.classList.toggle('dark', dark)
-    }
-    darkToggle.onclick = ()=>{ const cur = document.body.classList.toggle('dark'); localStorage.setItem('forge.dark', cur? '1':'0') }
+    // Staggered reveal
+    function applyStaggeredReveal(){ const groups = document.querySelectorAll('.panel, #projectsPanel .project, #metrics .stat-row, #logs .log-row'); let delay=0; groups.forEach(el=>{ el.style.animationDelay = delay+'ms'; el.classList.add('fadeIn'); delay+=60; if(delay>600) delay=600 }) }
+
+    // Dark mode
+    const darkToggle = $id('darkToggle')
+    function applyDarkPreference(){ const dark = localStorage.getItem('forge.dark') === '1'; document.body.classList.toggle('dark', dark) }
+    if(darkToggle) darkToggle.addEventListener('click', ()=>{ const cur = document.body.classList.toggle('dark'); localStorage.setItem('forge.dark', cur?'1':'0') })
     applyDarkPreference()
 
-    document.getElementById('send').onclick = async ()=>{
-      const msg = document.getElementById('msg').value
-      if(!msg) return
-      appendChat('You', msg)
-      try{
-        const res = await fetch('/api/chat', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({message: msg})})
-        const j = await res.json()
-        appendChat('Henry', j.response || JSON.stringify(j))
-      }catch(e){
-        appendChat('System','Error contacting API: '+e)
-      }
-      document.getElementById('msg').value=''
-    }
-    document.getElementById('clearChat').onclick = ()=>{ chatEl.innerHTML = '' }
+    safeAddListener('startStreamTop','click', ()=>{ const el = $id('startStream'); if(el && typeof el.click === 'function') el.click() })
 
-    function appendChat(who, text){
-      const p = document.createElement('div')
-      p.innerHTML = '<b>'+who+':</b> '+(text||'')
-      chatEl.appendChild(p)
-      chatEl.scrollTop = chatEl.scrollHeight
-    }
+    safeAddListener('send','click', async ()=>{ const msgEl = $id('msg'); if(!msgEl) return; const msg = msgEl.value; if(!msg) return; appendChat('You', msg); try{ const res = await fetchWithRetry('/api/chat', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({message: msg})}); const j = await res.json(); appendChat('Henry', j.response || JSON.stringify(j)) }catch(e){ appendChat('System','Error contacting API: '+e); showToast('Chat failed: '+(e && e.message || e), 'warn') } if(msgEl) msgEl.value = '' })
+    safeAddListener('clearChat','click', ()=>{ if(chatEl) chatEl.innerHTML = '' })
 
-    async function fetchHealth(){
-      try{
-        const res = await fetch('/api/health')
-        const j = await res.json()
-        renderHealth(j)
-      }catch(e){
-        statusEl.innerHTML = '<div class="small">Health fetch error: '+e+'</div>'
-      }
-    }
+    function appendChat(who, text){ try{ const p = document.createElement('div'); p.className = 'message fadeIn ' + (who==='You'? 'from-you':'from-henry'); p.innerHTML = '<b>'+who+':</b> '+(text||''); if(chatEl) chatEl.appendChild(p); if(chatEl) chatEl.scrollTop = chatEl.scrollHeight }catch(e){ console.warn('appendChat failed', e) } }
 
-    async function fetchStatus(page=0,pageSize=10){
-      try{
-        const res = await fetch('/api/status')
-        const j = await res.json()
-        tasksCache = j.tasks || []
-        renderStatusPage(page,pageSize)
-      }catch(e){
-        statusEl.innerHTML = '<div class="small">Status fetch error: '+e+'</div>'
-      }
-    }
+    // Health / Status
+    async function fetchHealth(){ try{ const res = await fetchWithRetry('/api/health'); const j = await res.json(); renderHealth(j) }catch(e){ if(statusEl) statusEl.innerHTML = '<div class="small">Health fetch error: '+e+'</div>'; showToast('Health fetch failed','warn') } }
+    async function fetchStatus(page=0,pageSize=10){ try{ const res = await fetchWithRetry('/api/status'); const j = await res.json(); tasksCache = j.tasks || []; renderStatusPage(page,pageSize) }catch(e){ if(statusEl) statusEl.innerHTML = '<div class="small">Status fetch error: '+e+'</div>'; showToast('Status fetch failed','warn') } }
 
-    function renderHealth(h){
-      if(!h || h.status!=='ok'){
-        statusEl.innerHTML = '<div class="small">Health check failed</div>'
-        return
-      }
-      let html = ''
-      html += '<h4>LLM Backends</h4>'
-      const back = h.llm_backends||{}
-      // Only render actual backend entries (those with an 'ok' boolean). Other keys (circuit, *_concurrency) are handled separately.
-      const backendKeys = Object.keys(back).filter(k => back[k] && typeof back[k].ok === 'boolean')
-      for(const k of backendKeys){
-        try{
-          const ok = !!back[k].ok
-          const models = Array.isArray(back[k].models) ? back[k].models.length : 0
-          html += `<div><b>${k}</b>: <span class="badge ${ok? 'ok':'fail'}">${ok? 'OK':'FAIL'}</span>`
-          if(models) html += ` <span class="small">(${models} models)</span>`
-          html += '</div>'
-        }catch(e){}
-      }
-      // Render breaker state and concurrency separately
-      if(back.circuit) {
-        html += '<h4>Breaker State</h4>'
-        html += '<pre class="small">'+JSON.stringify(back.circuit, null, 2)+'</pre>'
-      }
-      const ccKeys = ['llamacpp_concurrency','ollama_concurrency']
-      let concRendered = false
-      for(const ck of ccKeys){
-        if(back[ck]){
-          const c = back[ck]
-          const name = ck.replace('_concurrency','')
-          if(!concRendered){ html += '<h4>Concurrency</h4>'; concRendered = true }
-          let usageBadge = 'ok'
-          try{
-            if(c.in_use >= c.max) usageBadge = 'fail'
-            else if(c.in_use > 0) usageBadge = 'warn'
-            else usageBadge = 'ok'
-          }catch(e){ usageBadge = 'ok' }
-          html += `<div>${name}: ${c.in_use}/${c.max} in-use <span class="badge ${usageBadge}">${usageBadge.toUpperCase()}</span> <span class="small">(waiters:${c.waiters})</span></div>`
-        }
-      }
-      statusEl.innerHTML = html
+    function renderHealth(h){ try{ if(!h || h.status!=='ok'){ if(statusEl) statusEl.innerHTML = '<div class="small">Health check failed</div>'; return } let html=''; html += '<h4>LLM Backends</h4>'; const back = h.llm_backends||{}; const backendKeys = Object.keys(back).filter(k=>back[k]&&typeof back[k].ok==='boolean'); for(const k of backendKeys){ try{ const ok = !!back[k].ok; const models = Array.isArray(back[k].models)?back[k].models.length:0; html += `<div><b>${k}</b>: <span class="badge ${ok?'ok':'fail'}">${ok?'OK':'FAIL'}</span>`; if(models) html += ` <span class="small">(${models} models)</span>`; html += '</div>' }catch(e){} } if(back.circuit){ html += '<h4>Breaker State</h4>'; html += '<pre class="small">'+JSON.stringify(back.circuit,null,2)+'</pre>' } const ccKeys=['llamacpp_concurrency','ollama_concurrency']; let concRendered=false; for(const ck of ccKeys){ if(back[ck]){ const c=back[ck]; const name=ck.replace('_concurrency',''); if(!concRendered){ html += '<h4>Concurrency</h4>'; concRendered=true } let usageBadge='ok'; try{ if(c.in_use>=c.max) usageBadge='fail'; else if(c.in_use>0) usageBadge='warn'; else usageBadge='ok' }catch(e){ usageBadge='ok' } html += `<div>${name}: ${c.in_use}/${c.max} in-use <span class="badge ${usageBadge}">${usageBadge.toUpperCase()}</span> <span class="small">(waiters:${c.waiters})</span></div>` } } if(statusEl) statusEl.innerHTML = html }catch(e){ console.warn('renderHealth error', e) } }
+
+    function renderStatusPage(page,pageSize){ try{ const total = tasksCache.length; const pages = Math.max(1, Math.ceil(total/pageSize)); const start = page*pageSize; const slice = tasksCache.slice(start, start+pageSize); let html = ''; html += '<h4>Recent Tasks</h4>'; html += `<div class="small">showing ${start+1}-${Math.min(total,start+pageSize)} of ${total}</div>`; html += '<ul>' + slice.map(t=>`<li><a href="#" class="taskLink" data-id="${t.id}">${t.description}</a> <span class="small">(${t.assigned_to||''})</span></li>`).join('') + '</ul>'; html += '<div>'; for(let p=0;p<pages;p++) html += `<button class="btn ghost pageBtn" data-page="${p}">${p+1}</button>`; html += '</div>'; if(statusEl) statusEl.innerHTML = html; if(statusEl) statusEl.onclick = function(ev){ const t = ev.target; if(t && t.matches && t.matches('.taskLink')){ ev.preventDefault(); showTaskDetail(t.dataset.id); } else if(t && t.matches && t.matches('.pageBtn')){ const p = parseInt(t.dataset.page); renderStatusPage(p,pageSize); } } }catch(e){ console.warn('renderStatusPage error', e) } }
+
+    function showTaskDetail(id){ try{ const t = tasksCache.find(x=>String(x.id)===String(id)); if(!t) return; const overlay = document.createElement('div'); overlay.className='overlay'; const modal = document.createElement('div'); modal.className='modal'; modal.innerHTML = `<h3>Task ${t.id}</h3><pre class="small">${JSON.stringify(t,null,2)}</pre><div><button id="closeModal" class="btn">Close</button></div>`; document.body.appendChild(overlay); document.body.appendChild(modal); const closeEl = $id('closeModal'); if(closeEl) closeEl.addEventListener('click', ()=>{ try{ document.body.removeChild(overlay); document.body.removeChild(modal) }catch(e){} }) }catch(e){ console.warn('showTaskDetail error', e) } }
+
+    // Metrics pagination
+    let _metricsFetchInFlight=false; let metricsPage=0, metricsPageSize=20
+    async function fetchMetrics(){ if(_metricsFetchInFlight) return; _metricsFetchInFlight=true; try{ const autoEl = $id('autoMetrics'); const auto = autoEl && autoEl.checked; if(auto){ const res = await fetchWithRetry('/api/llm_metrics/aggregate?window_minutes=5&bucket_ms=200'); const agg = await res.json(); drawLatencyChartFromBuckets(agg); const res2 = await fetchWithRetry('/api/llm_metrics'); const j = await res2.json(); latestMetrics = j.metrics||[]; metricsPage=0; requestAnimationFrame(()=>{ renderMetricsFiltered() }) }else{ const res = await fetchWithRetry('/api/llm_metrics'); const j = await res.json(); latestMetrics = j.metrics||[]; metricsPage=0; requestAnimationFrame(()=>{ renderMetricsFiltered() }) } }catch(e){ if(metricsEl) metricsEl.innerHTML = '<div class="small">Metrics fetch error: '+e+'</div>'; showToast('Metrics fetch failed: '+(e&&e.message||e),'warn') }finally{ _metricsFetchInFlight=false } }
+
+    function renderMetricsFiltered(){ try{ let items = latestMetrics.slice(); const bEl = $id('metricBackend'); const tEl = $id('metricType'); const b = bEl && bEl.value; const t = tEl && tEl.value; if(b && b!=='all') items = items.filter(i => (i.payload && i.payload.backend===b) || i.agent===b); if(t && t!=='all') items = items.filter(i => i.action_type===t); requestAnimationFrame(()=>{ renderMetrics(items); drawLatencyChart(items.slice(0,200)) }) }catch(e){ console.warn('renderMetricsFiltered error', e) } }
+
+    function renderMetrics(items){ try{ if(!items || items.length===0){ if(metricsEl) metricsEl.innerHTML = '<div class="small">No metrics</div>'; if(metricsControls) metricsControls.innerHTML=''; return } const total=items.length; const start = metricsPage * metricsPageSize; const end = Math.min(total, start + metricsPageSize); const slice = items.slice(start,end); const frag = document.createDocumentFragment(); for(const it of slice){ const p = it.payload || {}; const d = document.createElement('div'); d.className='stat-row'; d.style.padding='6px 0'; const left=document.createElement('div'); left.style.flex='1'; left.innerHTML = `<b>${it.timestamp}</b> <span class="small">[${it.agent}/${it.action_type}]</span> ${escapeHtml(it.description)}`; const right=document.createElement('div'); right.className='small'; right.style.marginLeft='12px'; try{ right.textContent = JSON.stringify(p) }catch(e){ right.textContent = '' } d.appendChild(left); d.appendChild(right); frag.appendChild(d) } if(metricsEl){ metricsEl.innerHTML=''; metricsEl.appendChild(frag) } if(metricsControls){ metricsControls.innerHTML=''; const info=document.createElement('div'); info.className='small'; info.style.marginRight='12px'; info.textContent = `showing ${start+1}-${end} of ${total}`; const moreBtn=document.createElement('button'); moreBtn.className='btn ghost'; moreBtn.textContent='Load more'; moreBtn.disabled = end >= total; moreBtn.addEventListener('click', ()=>{ if(end < total){ metricsPage++; renderMetrics(items) } }); const resetBtn=document.createElement('button'); resetBtn.className='btn ghost'; resetBtn.textContent='Reset'; resetBtn.addEventListener('click', ()=>{ metricsPage=0; renderMetrics(items) }); const wrapper=document.createElement('div'); wrapper.style.display='flex'; wrapper.style.gap='8px'; wrapper.style.justifyContent='center'; wrapper.appendChild(info); wrapper.appendChild(moreBtn); wrapper.appendChild(resetBtn); metricsControls.appendChild(wrapper) } }catch(e){ console.warn('renderMetrics error', e) } }
+
+    function drawLatencyChart(items){ try{ if(!latencyCanvas) return; const ctx = latencyCanvas.getContext('2d'); const w = latencyCanvas.clientWidth; const h = latencyCanvas.clientHeight || 120; latencyCanvas.width = w; latencyCanvas.height = h; const lat = items.filter(i=>i.action_type==='llm_call' && i.payload && typeof i.payload.latency==='number').map(i=>i.payload.latency); ctx.clearRect(0,0,w,h); if(lat.length===0){ ctx.fillStyle='var(--muted)'; ctx.font='12px sans-serif'; ctx.fillText('No latency data',10,20); return } const max = Math.max(...lat,200); const buckets = 10; const counts = new Array(buckets).fill(0); for(const v of lat){ const b = Math.min(buckets-1, Math.floor((v/max)*buckets)); counts[b]++ } const maxCount = Math.max(...counts); const barW = Math.floor(w/buckets); for(let i=0;i<buckets;i++){ const hbar = maxCount>0 ? Math.round((counts[i]/maxCount)*(h-20)) : 0; const grad = ctx.createLinearGradient(i*barW,0,i*barW+h,0); grad.addColorStop(0,'rgba(0,224,255,0.9)'); grad.addColorStop(1,'rgba(123,97,255,0.9)'); ctx.fillStyle = grad; ctx.fillRect(i*barW+4, h-10-hbar, Math.max(4, barW-6), hbar); ctx.fillStyle='var(--muted)'; ctx.font='11px system-ui, sans-serif'; ctx.fillText(Math.round((i*(max/buckets)))+'ms', i*barW+6, h-2) } }catch(e){ console.warn('drawLatencyChart error', e) } }
+
+    function drawLatencyChartFromBuckets(agg){ try{ if(!latencyCanvas) return; const ctx = latencyCanvas.getContext('2d'); const w = latencyCanvas.clientWidth; const h = latencyCanvas.clientHeight || 120; latencyCanvas.width = w; latencyCanvas.height = h; ctx.clearRect(0,0,w,h); if(!agg || !agg.buckets || agg.buckets.length===0){ ctx.fillStyle='var(--muted)'; ctx.font='12px sans-serif'; ctx.fillText('No latency data',10,20); return } const buckets = agg.buckets; const maxCount = Math.max(...buckets.map(b=>b.count)); const barW = Math.floor(w / buckets.length); for(let i=0;i<buckets.length;i++){ const b = buckets[i]; const hbar = maxCount>0 ? Math.round((b.count / maxCount) * (h-20)) : 0; const grad = ctx.createLinearGradient(i*barW,0,i*barW+h,0); grad.addColorStop(0,'rgba(0,224,255,0.9)'); grad.addColorStop(1,'rgba(123,97,255,0.9)'); ctx.fillStyle = grad; ctx.fillRect(i*barW+4, h-10-hbar, Math.max(4, barW-6), hbar); ctx.fillStyle='var(--muted)'; ctx.font='11px system-ui, sans-serif'; ctx.fillText(b.bucket_start_ms+'ms', i*barW+6, h-2) } }catch(e){ console.warn('drawLatencyChartFromBuckets error', e) } }
+
+    // safe event wiring
+    safeAddListener('refreshHealth','click', fetchHealth)
+    safeAddListener('refreshStatus','click', ()=>{ fetchStatus(0,10) })
+    safeAddListener('refreshMetrics','click', fetchMetrics)
+    const autoMetricsEl = $id('autoMetrics'); if(autoMetricsEl && typeof autoMetricsEl.addEventListener === 'function'){ autoMetricsEl.addEventListener('change', function(){ if(this.checked){ metricsInterval = setInterval(fetchMetrics, 3000) } else { clearInterval(metricsInterval); metricsInterval = null } }) }
+    if(metricBackend && typeof metricBackend.addEventListener === 'function') metricBackend.addEventListener('change', renderMetricsFiltered); if(metricType && typeof metricType.addEventListener === 'function') metricType.addEventListener('change', renderMetricsFiltered)
+
+    // Logs paging and SSE throttling
+    const PAGE_SIZE = 50; let currentRows=[]; let paused=false; let currentAgent='all'; let earliestId=null; let latestId=null; let hasPrev=false; let hasNext=false; let lastLoadAttempt=0; let loadInFlight=false; let pendingReload=false; const LOAD_THROTTLE_MS=800
+
+    async function loadPage(params){ var agent = (params && params.agent) ? params.agent : 'all'; var beforeId = params && params.before_id ? params.before_id : null; var afterId = params && params.after_id ? params.after_id : null; var urlBase = (agent === 'all') ? '/api/logs/page' : '/api/logs/' + encodeURIComponent(agent) + '/page'; var qs = []; if(beforeId){ qs.push('before_id=' + encodeURIComponent(beforeId)) } if(afterId){ qs.push('after_id=' + encodeURIComponent(afterId)) } qs.push('limit=' + PAGE_SIZE); var url = urlBase + (qs.length ? ('?' + qs.join('&')) : ''); try{ loadInFlight=true; const res = await fetchWithRetry(url, {}, 2, 300); if(!res.ok){ console.warn('Page fetch failed', res.status); showToast('Logs failed to load ('+res.status+')','warn',3000); loadInFlight=false; return } const payload = await res.json(); currentRows = payload.rows || []; earliestId = payload.earliest_id || (currentRows.length ? currentRows[currentRows.length - 1].id : null); latestId = payload.latest_id || (currentRows.length ? currentRows[0].id : null); hasPrev = !!payload.has_prev; hasNext = !!payload.has_next; renderPageRows() }catch(err){ console.warn('Page load error', err); showToast('Logs fetch error: '+err.message,'warn',3000); setTimeout(()=>{ if(!loadInFlight) loadPage({agent: currentAgent}) }, 800) }finally{ loadInFlight=false; lastLoadAttempt = Date.now(); if(pendingReload){ pendingReload=false; setTimeout(()=>loadPage({agent: currentAgent}),200) } // reset coalesced counter after handling
+        coalescedEvents = 0; updateSseStatus() }
     }
 
-    function renderStatusPage(page,pageSize){
-      const total = tasksCache.length
-      const pages = Math.max(1, Math.ceil(total/pageSize))
-      const start = page*pageSize
-      const slice = tasksCache.slice(start, start+pageSize)
-      let html = ''
-      html += '<h4>Recent Tasks</h4>'
-      html += `<div class="small">showing ${start+1}-${Math.min(total,start+pageSize)} of ${total}</div>`
-      html += '<ul>' + slice.map(t=>`<li><a href="#" class="taskLink" data-id="${t.id}">${t.description}</a> <span class="small">(${t.assigned_to||''})</span></li>`).join('') + '</ul>'
-      html += '<div>'
-      for(let p=0;p<pages;p++) html += `<button class="btn pageBtn" data-page="${p}">${p+1}</button>`
-      html += '</div>'
-      statusEl.innerHTML = html
-      // Use event delegation to avoid attaching many listeners
-      statusEl.onclick = function(ev){
-        const t = ev.target
-        if(t && t.matches && t.matches('.taskLink')){ ev.preventDefault(); showTaskDetail(t.dataset.id); }
-        else if(t && t.matches && t.matches('.pageBtn')){ const p = parseInt(t.dataset.page); renderStatusPage(p,pageSize); }
-      }
-    }
+    function handleIncomingLine(line){ let m = line.match(/^\[(.+?)\.log\]\s*(.*)$/); let agent=null; if(m){ agent=m[1]; line='['+agent+'.log] '+m[2] } const selAgent = currentAgent; if(selAgent && selAgent!=='all' && agent && selAgent!==agent) return; const now = Date.now(); if(loadInFlight|| (now - lastLoadAttempt) < LOAD_THROTTLE_MS){ pendingReload=true; coalescedEvents++; updateSseStatus(); return } lastLoadAttempt=now; loadPage({agent: currentAgent}) }
 
-    function showTaskDetail(id){
-      const t = tasksCache.find(x=>String(x.id)===String(id))
-      if(!t) return
-      const overlay = document.createElement('div'); overlay.className='overlay'
-      const modal = document.createElement('div'); modal.className='modal'
-      modal.innerHTML = `<h3>Task ${t.id}</h3><pre class="small">${JSON.stringify(t,null,2)}</pre><div><button id="closeModal" class="btn">Close</button></div>`
-      document.body.appendChild(overlay); document.body.appendChild(modal)
-      document.getElementById('closeModal').onclick = ()=>{ document.body.removeChild(overlay); document.body.removeChild(modal) }
-    }
+    let sseFailCount=0; function startStream(){ if(es) return; try{ es=new EventSource('/api/logs/all/stream'); updateSseStatus('connecting'); es.onopen=function(){ sseFailCount=0; updateSseStatus('connected') }; es.onmessage=function(e){ try{ handleIncomingLine(e.data) }catch(e){ console.warn('handleIncomingLine', e) } }; es.onerror=function(e){ sseFailCount++; console.warn('SSE error', e); updateSseStatus('error'); if(sseFailCount>3){ try{ es.close() }catch(_){} es=null; setTimeout(()=>{ sseFailCount=0; startStream() }, 2000 + (sseFailCount*500)) } }; }catch(e){ console.warn('SSE init failed', e); showToast('Live stream not available','warn'); updateSseStatus('error') } }
+    function stopStream(){ if(es){ es.close(); es=null; updateSseStatus('disconnected') } }
 
-    let _metricsFetchInFlight = false
-    async function fetchMetrics(){
-      if(_metricsFetchInFlight) return
-      _metricsFetchInFlight = true
-      try{
-        // if auto-refresh is enabled, prefer aggregate endpoint for the chart to reduce payload size
-        const auto = document.getElementById('autoMetrics') && document.getElementById('autoMetrics').checked
-        if(auto){
-          const res = await fetch('/api/llm_metrics/aggregate?window_minutes=5&bucket_ms=200')
-          if(!res.ok) throw new Error('aggregate fetch failed')
-          const agg = await res.json()
-          // draw histogram from aggregate
-          drawLatencyChartFromBuckets(agg)
-          // still fetch the lightweight recent metrics for details (but limit)
-          const res2 = await fetch('/api/llm_metrics')
-          const j = await res2.json()
-          latestMetrics = j.metrics||[]
-          requestAnimationFrame(()=>{ renderMetricsFiltered() })
-        }else{
-          const res = await fetch('/api/llm_metrics')
-          const j = await res.json()
-          latestMetrics = j.metrics||[]
-          requestAnimationFrame(()=>{ renderMetricsFiltered() })
-        }
-      }catch(e){
-        metricsEl.innerHTML = '<div class="small">Metrics fetch error: '+e+'</div>'
-      }finally{
-        _metricsFetchInFlight = false
-      }
-    }
+    function updateSseStatus(state){ try{ if(!sseStatusEl) return; let text='SSE: '+(state||'connected'); if(state==='connecting') text='SSE: connecting...'; else if(state==='connected') text='SSE: connected'; else if(state==='error') text='SSE: reconnecting'; else if(state==='disconnected') text='SSE: disconnected'; if(coalescedEvents>0) text += ' • +' + coalescedEvents; sseStatusEl.textContent = text }catch(e){} }
 
-    // safe wrapper in case a naming collision occurs in the page globals
+    safeAddListener('pauseStream','click', function(){ paused = !paused; const el = $id('pauseStream'); if(el) el.textContent = paused ? 'Resume' : 'Pause'; })
 
-    function renderMetricsFiltered(){
-      let items = latestMetrics.slice()
-      const b = metricBackend.value
-      const t = metricType.value
-      if(b && b!=='all') items = items.filter(i => (i.payload && i.payload.backend===b) || i.agent===b)
-      if(t && t!=='all') items = items.filter(i => i.action_type===t)
-      // schedule rendering/drawing in rAF to keep UI responsive
-      requestAnimationFrame(()=>{ renderMetrics(items); drawLatencyChart(items.slice(0,200)) })
-    }
+    async function loadAgentList(){ try{ const res = await fetchWithRetry('/api/logs'); const j = await res.json(); const sel = $id('agentSelect'); if(!sel) return; sel.innerHTML = '<option value="all">all</option>'; for(const f of (j.logs||[])){ const opt = document.createElement('option'); opt.value = f.replace(/\.log$/,''); opt.textContent = f; sel.appendChild(opt) } }catch(e){ console.warn('loadAgentList failed', e); showToast('Could not load agent list','warn') } }
 
-    function renderMetrics(items){
-      if(!items || items.length===0){ metricsEl.innerHTML = '<div class="small">No metrics</div>'; return }
-      const cap = 200
-      const frag = document.createDocumentFragment()
-      const slice = items.slice(0,cap)
-      for(const it of slice){
-        const p = it.payload || {}
-        const d = document.createElement('div')
-        const b = document.createElement('b')
-        b.textContent = it.timestamp
-        const meta = document.createElement('span')
-        meta.className = 'small'
-        meta.textContent = ` [${it.agent}/${it.action_type}] `
-        const desc = document.createTextNode(' ' + it.description + ' ')
-        const payload = document.createElement('span')
-        payload.className = 'small'
-        try{ payload.textContent = JSON.stringify(p) }catch(e){ payload.textContent = '' }
-        d.appendChild(b); d.appendChild(meta); d.appendChild(desc); d.appendChild(payload)
-        frag.appendChild(d)
-      }
-      metricsEl.innerHTML = ''
-      metricsEl.appendChild(frag)
-    }
+    async function fetchProjects(){ try{ const res = await fetchWithRetry('/api/projects'); if(!res.ok) return; const j = await res.json(); renderProjects(j.projects||[]) }catch(e){ console.error('fetchProjects error', e); showToast('Projects load failed','warn') } }
 
-    function drawLatencyChart(items){
-      // legacy: draw from raw items
-      const ctx = latencyCanvas.getContext('2d')
-      const w = latencyCanvas.clientWidth
-      const h = latencyCanvas.clientHeight || 120
-      latencyCanvas.width = w; latencyCanvas.height = h
-      const lat = items.filter(i=>i.action_type==='llm_call' && i.payload && typeof i.payload.latency==='number').map(i=>i.payload.latency)
-      ctx.clearRect(0,0,w,h)
-      ctx.fillStyle = document.body.classList.contains('dark') ? '#3478b6' : '#0b66a6'
-      if(lat.length===0){ ctx.fillStyle='var(--muted)'; ctx.fillText('No latency data',10,20); return }
-      const max = Math.max(...lat,200)
-      const buckets = 10
-      const counts = new Array(buckets).fill(0)
-      for(const v of lat){ const b = Math.min(buckets-1, Math.floor((v/max)*buckets)); counts[b]++ }
-      const maxCount = Math.max(...counts)
-      const barW = Math.floor(w/buckets)
-      for(let i=0;i<buckets;i++){
-        const hbar = maxCount>0 ? Math.round((counts[i]/maxCount)*(h-20)) : 0
-        ctx.fillRect(i*barW+4, h-10-hbar, barW-6, hbar)
-        ctx.fillStyle='var(--muted)'
-        ctx.fillText(Math.round((i*(max/buckets)))+'ms', i*barW+6, h-2)
-        ctx.fillStyle = document.body.classList.contains('dark') ? '#3478b6' : '#0b66a6'
-      }
-    }
+    function renderProjects(projects){ const panel = $id('projectsPanel'); if(!panel) return; const frag=document.createDocumentFragment(); for(const p of projects){ const d=document.createElement('div'); d.className='project'; d.style.padding='10px'; d.innerHTML = `<div><b>${escapeHtml(p.name)}</b><div class="small">${escapeHtml(p.description||'')}</div></div><div style="text-align:right"><div class="small">${p.total_tasks||0} tasks</div><div style="margin-top:8px"><div class="badge">${escapeHtml(p.status||'idle')}</div></div></div>`; d.dataset.projectId=p.id; d.addEventListener('click', function(){ fetchProjectDetail(this.dataset.projectId) }); frag.appendChild(d) } panel.innerHTML=''; panel.appendChild(frag) }
 
-    function drawLatencyChartFromBuckets(agg){
-      const ctx = latencyCanvas.getContext('2d')
-      const w = latencyCanvas.clientWidth
-      const h = latencyCanvas.clientHeight || 120
-      latencyCanvas.width = w; latencyCanvas.height = h
-      ctx.clearRect(0,0,w,h)
-      if(!agg || !agg.buckets || agg.buckets.length===0){ ctx.fillStyle='var(--muted)'; ctx.fillText('No latency data',10,20); return }
-      const buckets = agg.buckets
-      const maxCount = Math.max(...buckets.map(b=>b.count))
-      const barW = Math.floor(w / buckets.length)
-      ctx.fillStyle = document.body.classList.contains('dark') ? '#3478b6' : '#0b66a6'
-      for(let i=0;i<buckets.length;i++){
-        const b = buckets[i]
-        const hbar = maxCount>0 ? Math.round((b.count / maxCount) * (h-20)) : 0
-        ctx.fillRect(i*barW+4, h-10-hbar, Math.max(4, barW-6), hbar)
-        ctx.fillStyle='var(--muted)'
-        ctx.fillText(b.bucket_start_ms+'ms', i*barW+6, h-2)
-        ctx.fillStyle = document.body.classList.contains('dark') ? '#3478b6' : '#0b66a6'
-      }
-    }
+    async function fetchProjectDetail(id){ try{ const res = await fetchWithRetry('/api/projects/' + encodeURIComponent(id)); if(!res.ok) return; const j = await res.json(); renderProjectDetail(j.project, j.tasks||[]) }catch(e){ console.error('project detail error', e); showToast('Project detail failed','warn') } }
 
-    document.getElementById('refreshHealth').addEventListener('click', fetchHealth)
-    document.getElementById('refreshStatus').addEventListener('click', function(){ fetchStatus(0,10) })
-    document.getElementById('refreshMetrics').addEventListener('click', fetchMetrics)
+    function renderProjectDetail(project, tasks){ let html=''; html += `<h4>Project: ${escapeHtml(project.name)}</h4>`; html += `<div class="small">${escapeHtml(project.description||'')}</div>`; html += `<div style="margin-top:8px"><button id="suggestMatches" class="btn ghost">Suggest Matches</button> <button id="assignSelected" class="btn" style="display:none">Assign Selected</button></div>`; html += '<div id="suggestions" class="small" style="margin-top:8px"></div>'; html += '<ul>'; for(const t of tasks){ html += `<li><b>#${t.id}</b> ${escapeHtml(t.description)} <span class="small">(${escapeHtml(t.status||'')})</span> <span class="small">[${escapeHtml(t.assigned_to||'')}]</span></li>` } html += '</ul>'; if($id('status')) $id('status').innerHTML=html; const sugBtn=$id('suggestMatches'); if(sugBtn){ sugBtn.addEventListener('click', async function(){ const sid=project.id; try{ const res = await fetchWithRetry('/api/projects/' + encodeURIComponent(sid) + '/suggest_matches'); if(!res.ok) throw new Error('suggest failed'); const j = await res.json(); renderSuggestions(j.candidates || [], sid) }catch(e){ console.error('suggest error', e); showToast('Suggest matches failed','warn') } }) } }
 
-    document.getElementById('autoMetrics').addEventListener('change', function(){
-      if (this.checked) {
-        metricsInterval = setInterval(fetchMetrics, 3000)
-      } else {
-        clearInterval(metricsInterval)
-        metricsInterval = null
-      }
-    })
+    function renderSuggestions(candidates, projectId){ const box=$id('suggestions'); if(!box) return; if(!candidates||candidates.length===0){ box.innerHTML='<div class="small">No candidates found</div>'; return } let html='<form id="suggestForm">'; html += '<div class="small">Select tasks to assign:</div>'; for(const c of candidates.slice(0,100)){ const score = typeof c.score !== 'undefined' ? (' <span class="small">score:'+String(c.score)+'</span>') : ''; html += `<div style="margin:6px 0"><label><input type="checkbox" name="task" value="${c.id}" /> <b>#${c.id}</b> ${escapeHtml(c.description)} ${score} <span class="small">(${escapeHtml(c.status||'')})</span> <span class="small">[${escapeHtml(c.assigned_to||'')}]</span></label></div>` } html += '</form>'; html += '<div style="margin-top:6px"><button id="assignButton" class="btn">Assign Selected to Project</button></div>'; box.innerHTML=html; const assignBtn=$id('assignButton'); if(assignBtn){ assignBtn.addEventListener('click', async function(){ const form=document.getElementById('suggestForm'); const checked=Array.from(form.querySelectorAll('input[name="task"]:checked')).map(x=>parseInt(x.value)); if(checked.length===0) return; try{ const res = await fetchWithRetry('/api/projects/' + encodeURIComponent(projectId) + '/assign_tasks', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({task_ids: checked})}); if(!res.ok) throw new Error('assign failed'); const j = await res.json(); await fetchProjects(); await fetchProjectDetail(projectId) }catch(e){ console.error('assign error', e); showToast('Assign failed','warn') } }) } }
 
-    metricBackend.addEventListener('change', renderMetricsFiltered)
-    metricType.addEventListener('change', renderMetricsFiltered)
-
-    document.getElementById('startStream').addEventListener('click', startStream)
-    document.getElementById('stopStream').addEventListener('click', stopStream)
-
-    // Paging-based log viewer (plain list). PAGE_SIZE is consistent for homepage and agent pages
-    const PAGE_SIZE = 50
-    let currentRows = []
-    let paused = false
-    let currentAgent = 'all'
-    let earliestId = null
-    let latestId = null
-    let hasPrev = false
-    let hasNext = false
-
-    let _prevRenderedIds = ''
-    function renderPageRows(){
-      // avoid unnecessary full re-renders which cause flicker when nothing changed
-      const ids = currentRows.map(r => r.id).join(',')
-      // still update nav state even if rows unchanged
-      document.getElementById('prevPage').disabled = !hasPrev
-      document.getElementById('nextPage').disabled = !hasNext
-      const info = document.getElementById('pagingInfo')
-      if(info) info.textContent = `Showing ${currentRows.length} items` + (earliestId? ' — earliest_id:'+earliestId : '')
-      if(ids === _prevRenderedIds) { return }
-      _prevRenderedIds = ids
-      // render currentRows (already newest-first)
-      const frag = document.createDocumentFragment()
-      for(const r of currentRows){
-        const d = document.createElement('div')
-        d.className = 'small log-row'
-        d.style.padding = '6px 4px'
-        d.style.borderBottom = '1px solid rgba(0,0,0,0.04)'
-        d.innerHTML = `<b>${r.timestamp}</b> <span class="small">[${r.agent}/${r.action_type}]</span> ${escapeHtml(r.description)} <span class="small">${escapeHtml(JSON.stringify(r.payload||{}))}</span>`
-        frag.appendChild(d)
-      }
-      // replaceChildren is cheaper than innerHTML = '' and avoids reparsing
-      logsEl.replaceChildren(frag)
-    }
+    // Logs rendering helper
+    let _prevRenderedIds=''
+    function renderPageRows(){ try{ const ids = currentRows.map(r=>r.id).join(','); const prevBtn = $id('prevPage'); const nextBtn = $id('nextPage'); if(prevBtn) prevBtn.disabled = !hasPrev; if(nextBtn) nextBtn.disabled = !hasNext; const info=document.getElementById('pagingInfo'); if(info) info.textContent = `Showing ${currentRows.length} items` + (earliestId? ' — earliest_id:'+earliestId : ''); if(ids===_prevRenderedIds) return; _prevRenderedIds=ids; const frag=document.createDocumentFragment(); for(const r of currentRows){ const d=document.createElement('div'); d.className='log-row'; d.style.padding='6px 4px'; d.style.borderBottom='1px solid rgba(255,255,255,0.02)'; d.innerHTML = `<b>${r.timestamp}</b> <span class="small">[${r.agent}/${r.action_type}]</span> ${escapeHtml(r.description)} <span class="small">${escapeHtml(JSON.stringify(r.payload||{}))}</span>`; frag.appendChild(d) } if(logsEl) logsEl.replaceChildren(frag) }catch(e){ console.warn('renderPageRows error', e) } }
 
     function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
 
-    // streaming: still provide SSE but we only append to view if agent filter allows
-    let es_queue = []
-    function handleIncomingLine(line){
-      let m = line.match(/^\[(.+?)\.log\]\s*(.*)$/)
-      let agent = null
-      if(m){ agent = m[1]; line = '['+agent+'.log] '+m[2] }
-      const selAgent = currentAgent
-      if(selAgent && selAgent !== 'all' && agent && selAgent !== agent) return
-      // if we're currently showing a paged list, and the new event is newer than latestId, prepend it
-      if(latestId === null || (m && agent && latestId && m && typeof m[0] !== 'undefined')){
-        // best-effort: refresh current page to include newest entries
-        loadPage({agent: currentAgent})
-      }
-    }
+    const prevPageBtn = $id('prevPage'); if(prevPageBtn) prevPageBtn.addEventListener('click', ()=>{ if(!hasPrev) return; loadPage({ agent: currentAgent, after_id: latestId }) })
+    const nextPageBtn = $id('nextPage'); if(nextPageBtn) nextPageBtn.addEventListener('click', ()=>{ if(!hasNext) return; loadPage({ agent: currentAgent, before_id: earliestId }) })
 
-    function startStream(){
-      if(es) return
-      es = new EventSource('/api/logs/all/stream')
-      es.onmessage = function(e){ handleIncomingLine(e.data) }
-      es.onerror = function(){ /* ignore */ }
-    }
-    function stopStream(){ if(es){ es.close(); es = null } }
+    function onAgentSelectChange(ev){ var a=ev.target.value; currentAgent=a; earliestId=null; latestId=null; hasPrev=false; hasNext=false; const prev = $id('prevPage'); const next = $id('nextPage'); if(prev) prev.disabled=true; if(next) next.disabled=true; loadPage({ agent: a }) }
+    // wire agent select safely
+const agentSelectEl = $id('agentSelect'); if(agentSelectEl && typeof agentSelectEl.addEventListener === 'function') agentSelectEl.addEventListener('change', onAgentSelectChange)
+// fallback: attempt safeAddListener for older/odd environments
+else safeAddListener('agentSelect','change', onAgentSelectChange)
 
-    // pause/resume control
-    document.getElementById('pauseStream').onclick = function(){ paused = !paused; this.textContent = paused ? 'Resume' : 'Pause'; }
-
-    // Load agent list and load recent
-    async function loadAgentList(){
-      try{
-        const res = await fetch('/api/logs')
-        const j = await res.json()
-        const sel = document.getElementById('agentSelect')
-        sel.innerHTML = '<option value="all">all</option>'
-        for(const f of (j.logs||[])){
-          const opt = document.createElement('option'); opt.value = f.replace(/\.log$/,''); opt.textContent = f; sel.appendChild(opt)
-        }
-      }catch(e){ }
-    }
-
-    // Projects UI: fetch and render project summary list
-    async function fetchProjects(){
-      try{
-        const res = await fetch('/api/projects')
-        if(!res.ok) return
-        const j = await res.json()
-        renderProjects(j.projects||[])
-      }catch(e){ console.error('fetchProjects error', e) }
-    }
-
-    function renderProjects(projects){
-      const panel = document.getElementById('projectsPanel')
-      if(!panel) return
-      const frag = document.createDocumentFragment()
-      for(const p of projects){
-        const d = document.createElement('div')
-        d.className = 'small'
-        d.style.padding = '6px'
-        d.style.borderBottom = '1px solid rgba(0,0,0,0.04)'
-        const pct = p.progress_pct || 0
-        const status = p.status || 'idle'
-        const badgeClass = status === 'done' ? 'ok' : (status === 'in_progress' ? 'warn' : (status === 'pending' ? 'warn' : 'small'))
-        d.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:center">
-            <div><b>${escapeHtml(p.name)}</b><div class="small">${escapeHtml(p.description||'')}</div></div>
-            <div style="text-align:right">
-              <div class="small">${p.total_tasks||0} tasks</div>
-              <div style="margin-top:6px"><span class="badge ${badgeClass}">${escapeHtml(status)}</span></div>
-            </div>
-          </div>
-          <div style="margin-top:8px">
-            <div class="progress-bar" aria-hidden="true"><div class="progress-inner" style="width:${pct}%"></div></div>
-          </div>
-        `
-        d.dataset.projectId = p.id
-        d.onclick = function(){ fetchProjectDetail(this.dataset.projectId) }
-        frag.appendChild(d)
-      }
-      panel.innerHTML = ''
-      panel.appendChild(frag)
-    }
-
-    async function fetchProjectDetail(id){
-      try{
-        const res = await fetch('/api/projects/' + encodeURIComponent(id))
-        if(!res.ok) return
-        const j = await res.json()
-        renderProjectDetail(j.project, j.tasks||[])
-      }catch(e){ console.error('project detail error', e) }
-    }
-
-    function renderProjectDetail(project, tasks){
-      let html = ''
-      html += `<h4>Project: ${escapeHtml(project.name)}</h4>`
-      html += `<div class="small">${escapeHtml(project.description||'')}</div>`
-      html += `<div style="margin-top:8px"><button id="suggestMatches" class="btn secondary">Suggest Matches</button> <button id="assignSelected" class="btn" style="display:none">Assign Selected</button></div>`
-      html += '<div id="suggestions" class="small" style="margin-top:8px"></div>'
-      html += '<ul>'
-      for(const t of tasks){
-        html += `<li><b>#${t.id}</b> ${escapeHtml(t.description)} <span class="small">(${escapeHtml(t.status||'')})</span> <span class="small">[${escapeHtml(t.assigned_to||'')}]</span></li>`
-      }
-      html += '</ul>'
-      document.getElementById('status').innerHTML = html
-      // wire suggest matches button
-      const sugBtn = document.getElementById('suggestMatches')
-      if(sugBtn){
-        sugBtn.onclick = async function(){
-          const sid = project.id
-          try{
-            const res = await fetch('/api/projects/' + encodeURIComponent(sid) + '/suggest_matches')
-            if(!res.ok) throw new Error('suggest failed')
-            const j = await res.json()
-            renderSuggestions(j.candidates || [], sid)
-          }catch(e){ console.error('suggest error', e) }
-        }
-      }
-    }
-
-    function renderSuggestions(candidates, projectId){
-      const box = document.getElementById('suggestions')
-      if(!box) return
-      if(!candidates || candidates.length===0){ box.innerHTML = '<div class="small">No candidates found</div>'; return }
-      let html = '<form id="suggestForm">'
-      html += '<div class="small">Select tasks to assign:</div>'
-      for(const c of candidates.slice(0,100)){
-        const score = typeof c.score !== 'undefined' ? (' <span class="small">score:'+String(c.score)+'</span>') : ''
-        html += `<div style="margin:6px 0"><label><input type="checkbox" name="task" value="${c.id}" /> <b>#${c.id}</b> ${escapeHtml(c.description)} ${score} <span class="small">(${escapeHtml(c.status||'')})</span> <span class="small">[${escapeHtml(c.assigned_to||'')}]</span></label></div>`
-      }
-      html += '</form>'
-      html += '<div style="margin-top:6px"><button id="assignButton" class="btn">Assign Selected to Project</button></div>'
-      box.innerHTML = html
-      document.getElementById('assignButton').onclick = async function(){
-        const form = document.getElementById('suggestForm')
-        const checked = Array.from(form.querySelectorAll('input[name="task"]:checked')).map(x=>parseInt(x.value))
-        if(checked.length===0) return
-        try{
-          const res = await fetch('/api/projects/' + encodeURIComponent(projectId) + '/assign_tasks', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({task_ids: checked})})
-          if(!res.ok) throw new Error('assign failed')
-          const j = await res.json()
-          // refresh UI
-          await fetchProjects()
-          await fetchProjectDetail(projectId)
-        }catch(e){ console.error('assign error', e) }
-      }
-    }
-
-    document.getElementById('refreshProjects').addEventListener('click', fetchProjects)
-
-    function onAgentSelectChange(ev){
-      var a = ev.target.value
-      currentAgent = a
-      earliestId = null
-      latestId = null
-      hasPrev = false
-      hasNext = false
-      document.getElementById('prevPage').disabled = true
-      document.getElementById('nextPage').disabled = true
-      loadPage({ agent: a })
-    }
-    document.getElementById('agentSelect').addEventListener('change', onAgentSelectChange)
-
-    async function loadPage(params){
-      var agent = (params && params.agent) ? params.agent : 'all'
-      var beforeId = params && params.before_id ? params.before_id : null
-      var afterId = params && params.after_id ? params.after_id : null
-      var urlBase = (agent === 'all') ? '/api/logs/page' : '/api/logs/' + encodeURIComponent(agent) + '/page'
-      var qs = []
-      if (beforeId) { qs.push('before_id=' + encodeURIComponent(beforeId)) }
-      if (afterId) { qs.push('after_id=' + encodeURIComponent(afterId)) }
-      qs.push('limit=' + PAGE_SIZE)
-      var url = urlBase + (qs.length ? ('?' + qs.join('&')) : '')
-      try {
-        var res = await fetch(url)
-        if (!res.ok) { console.error('Page fetch failed', res.status); return }
-        var payload = await res.json()
-        currentRows = payload.rows || []
-        earliestId = payload.earliest_id || (currentRows.length ? currentRows[currentRows.length - 1].id : null)
-        latestId = payload.latest_id || (currentRows.length ? currentRows[0].id : null)
-        hasPrev = !!payload.has_prev
-        hasNext = !!payload.has_next
-        renderPageRows()
-      } catch (err) {
-        console.error('Page load error', err)
-      }
-    }
-
-    function onPrevPageClick(){
-      if (!hasPrev) { return }
-      loadPage({ agent: currentAgent, after_id: latestId })
-    }
-    function onNextPageClick(){
-      if (!hasNext) { return }
-      loadPage({ agent: currentAgent, before_id: earliestId })
-    }
-    document.getElementById('prevPage').addEventListener('click', onPrevPageClick)
-    document.getElementById('nextPage').addEventListener('click', onNextPageClick)
-
-    // initial load: load agent list, fetch a paged set of recent logs (50), then start stream
-    loadAgentList()
-    fetchHealth(); fetchStatus();
-    (async()=>{
-      try{
-        if(typeof fetchMetrics === 'function') { await fetchMetrics() }
-        else { const res = await fetch('/api/llm_metrics'); if(res.ok){ const j = await res.json(); latestMetrics = j.metrics||[]; requestAnimationFrame(()=>{ renderMetricsFiltered() }) } }
-      }catch(e){}
-      // fetch first page for homepage
-      try{
-        await loadPage({agent: 'all'})
-      }catch(e){}
-      // fetch projects for the sidebar
-      try{ await fetchProjects() }catch(e){}
-      // start SSE streaming afterwards to receive live updates (they'll be filtered by agent selection)
-      startStream()
-    })()
+    // init
+    (async()=>{ await loadAgentList(); fetchHealth(); fetchStatus(); try{ await fetchMetrics() }catch(e){}; try{ await loadPage({agent:'all'}) }catch(e){}; try{ await fetchProjects() }catch(e){}; startStream(); setTimeout(applyStaggeredReveal,300) })()
   </script>
 </body>
 </html>

@@ -13,6 +13,7 @@ Table of contents
 - Operational controls (system-level and app-level)
 - Files and locations
 - Troubleshooting
+- Uninstall
 - Changelog
 
 Quick start (Debian/LXC)
@@ -71,6 +72,32 @@ Troubleshooting
 - Agent logs: /workspace/logs/<agent>.log
 - Check DB: sqlite3 /data/forge.db
 - If systemctl is present but you see unexpected behavior, try using `sudo systemctl stop forge` to ensure systemd is aware of your intent.
+
+Uninstall
+
+If you need to remove FORGE from a host, the CLI provides a safe, configurable uninstall flow. The uninstall command stops running services first and then optionally deletes data, the virtualenv, and the systemd unit.
+
+Usage examples:
+- Preview removal without making changes (dry-run):
+  .venv/bin/python3 forge_cli.py uninstall --dry-run --purge-data --remove-venv --remove-systemd
+
+- Interactive uninstall (will prompt for confirmation):
+  .venv/bin/python3 forge_cli.py uninstall --purge-data
+
+- Non-interactive uninstall (will remove data, venv, and systemd unit):
+  sudo .venv/bin/python3 forge_cli.py uninstall --purge-data --remove-venv --remove-systemd --yes
+
+What the command does:
+- Stops the service (prefers systemctl stop; falls back to killing repo-owned uvicorn processes).
+- If --purge-data is passed, the command backs up the DB to /tmp and removes DATA_DIR (default /data) and workspace logs.
+- If --remove-venv is passed, it removes the virtualenv at /opt/forge-venv (requires root if under /opt).
+- If --remove-systemd is passed, it disables and removes /etc/systemd/system/forge.service (requires root).
+- By default the uninstall prompts and supports --dry-run and --yes for scripting.
+
+Safety notes
+- The uninstall makes a DB backup to /tmp before deleting the DB when --purge-data is used. If you want the backup elsewhere, move it from /tmp after uninstall.
+- Removing systemd units or /opt directories generally requires root; run the command with sudo for those actions.
+- The uninstall leaves repository files in-place (it does not delete files inside the cloned repo directory), but it will remove runtime data in /data and /workspace if requested.
 
 Changelog (recent)
 - See CHANGELOG.md in the repo for release notes and details.

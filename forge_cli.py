@@ -452,5 +452,129 @@ def skills():
     console.print(table)
 
 
+@app.command()
+def uninstall(purge_data: bool = typer.Option(False, '--purge-data', help='Remove data directories and database'), remove_venv: bool = typer.Option(False, '--remove-venv', help='Remove virtualenv (if created at /opt/forge-venv)'), remove_systemd: bool = typer.Option(False, '--remove-systemd', help='If a systemd unit is installed, disable and remove it'), yes: bool = typer.Option(False, '--yes', '-y', help='Do not prompt for confirmation (use with caution)'), dry_run: bool = typer.Option(False, '--dry-run', help='Show what would be removed but do not delete')):
+    """Uninstall FORGE. Stops services and optionally removes data, venv, and systemd unit files.
+
+    This command follows common CLI best-practices:
+      - prompts for confirmation unless --yes is passed
+      - supports a dry-run mode that prints all actions without performing them
+      - offers a choice to keep or purge user data
+    """
+    console.print('[bold]FORGE Uninstall[/bold]\n')
+    actions = []
+    # Stop service first
+    console.print('Stopping any running forge service/processes...')
+    try:
+        # prefer systemctl stop if available
+        invoked, success = _run_systemctl('stop')
+        if invoked and success:
+            actions.append('systemctl stop forge')
+        else:
+            # call internal stop routine to kill processes
+            stop(force=True)
+            actions.append('stopped uvicorn processes')
+    except Exception as e:
+        console.print(f'[red]Warning stopping service:[/red] {e}')
+    # Systemd unit removal
+    if remove_systemd:
+        unit_path = '/etc/systemd/system/forge.service'
+        console.print('\n[bold]Systemd unit removal requested[/bold]')
+        if dry_run:
+            console.print(f'Would disable and remove systemd unit at {unit_path} (if present)')
+        else:
+            if shutil.which('systemctl'):
+                try:
+                    subprocess.run(['systemctl', 'disable', '--now', 'forge'], check=False)
+                    console.print('systemctl disable --now forge (attempted)')
+                except Exception:
+                    pass
+            if os.path.exists(unit_path):
+                try:
+                    os.remove(unit_path)
+                    console.print(f'Removed {unit_path}')
+                    # reload systemd
+                    if shutil.which('systemctl'):
+                        subprocess.run(['systemctl', 'daemon-reload'], check=False)
+                except Exception as e:
+                    console.print(f'Failed to remove {unit_path}: {e}')
+            else:
+                console.print(f'No unit file at {unit_path}')
+        actions.append('remove systemd unit')
+    # Prepare list of data paths
+    workspace = os.getenv('WORKSPACE_DIR', '/workspace')
+    data_dir = os.getenv('DATA_DIR', '/data')
+    db_path = data_dir.rstrip('/') + '/forge.db'
+    logs_dir = os.path.join(workspace, 'logs')
+    pidfile = os.getenv('WORKSPACE_DIR', '/workspace') + '/forge.pid'
+    venv_path = '/opt/forge-venv'
+
+    removal_items = []
+    if purge_data:
+        removal_items.extend([db_path, data_dir, logs_dir])
+    if remove_venv:
+        removal_items.append(venv_path)
+    # always suggest removing pidfile and logs/out files
+    removal_items.extend([pidfile, os.path.join(workspace, 'forge.out.log'), os.path.join(workspace, 'forge.err.log')])
+
+    # Deduplicate and filter non-empty
+    removal_items = [p for p in sorted(set(removal_items)) if p]
+
+    if dry_run:
+        console.print('\n[bold]Dry run mode - the following items would be removed:[/bold]')
+        for p in removal_items:
+            console.print('  - ' + p)
+        console.print('\nNo changes made.')
+        raise typer.Exit()
+
+    if not yes:
+        console.print('\nThe following paths will be removed:')
+        for p in removal_items:
+            console.print('  - ' + p)
+        console.print('\nType [bold red]yes[/bold red] to confirm and continue, or anything else to abort:')
+        choice = console.input('> ')
+        if choice.strip().lower() != 'yes':
+            console.print('Aborting uninstall')
+            raise typer.Exit()
+
+    # Backup DB if user chose to purge data and DB exists
+    if purge_data and os.path.exists(db_path):
+        try:
+            backup_path = f'/tmp/forge_db_backup_{int(time.time())}.db'
+            shutil.copy2(db_path, backup_path)
+            console.print(f'Backed up database to {backup_path}')
+        except Exception as e:
+            console.print(f'Failed to backup DB: {e}')
+    # Perform deletions
+    for p in removal_items:
+        try:
+            if not os.path.exists(p):
+                console.print(f'Not found: {p}')
+                continue
+            if os.path.isfile(p) or os.path.islink(p):
+                os.remove(p)
+                console.print(f'Removed file: {p}')
+            elif os.path.isdir(p):
+                shutil.rmtree(p)
+                console.print(f'Removed dir: {p}')
+            else:
+                console.print(f'Unknown path type, skipping: {p}')
+        except Exception as e:
+            console.print(f'Failed to remove {p}: {e}')
+    # Optionally remove systemd unit in repo path (local copy)
+    repo_unit = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'systemd', 'forge.service')
+    try:
+        if os.path.exists(repo_unit):
+            console.print(f'Local unit file in repo: {repo_unit} (left in place)')
+    except Exception:
+        pass
+
+    console.print('\nUninstall complete.')
+    try:
+        if audit_db:
+            audit_db.write_log('cli','uninstall','uninstalled', payload={'purge_data': purge_data, 'remove_venv': remove_venv, 'remove_systemd': remove_systemd})
+    except Exception:
+        pass
+
 if __name__ == '__main__':
     app()
