@@ -17,7 +17,31 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
 app = typer.Typer()
 console = Console()
+import tempfile, warnings
+
 DB = os.getenv('DATA_DIR', '/data') + '/forge.db'
+# If DATA_DIR is not writable in some CI/container environments, allow a fallback
+FALLBACK_DB_DIR = os.getenv('FORGE_FALLBACK_DATA_DIR') or os.path.join(tempfile.gettempdir(), 'forge_data')
+
+def _resolve_db_path():
+    db_path = DB
+    parent = os.path.dirname(db_path)
+    try:
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        return db_path
+    except Exception as e:
+        try:
+            os.makedirs(FALLBACK_DB_DIR, exist_ok=True)
+            fallback_path = os.path.join(FALLBACK_DB_DIR, os.path.basename(db_path))
+            warnings.warn(f"Could not create data dir {parent}, using fallback {FALLBACK_DB_DIR}: {e}")
+            return fallback_path
+        except Exception:
+            # Last resort: use cwd
+            alt = os.path.join('.', os.path.basename(db_path))
+            warnings.warn(f"Falling back to local db path {alt}")
+            return alt
+
 PID_FILE = os.getenv('WORKSPACE_DIR', '/workspace') + '/forge.pid'
 # import DB helper for audit logging from CLI actions
 try:
@@ -27,7 +51,8 @@ except Exception:
 
 
 def db_conn():
-    conn = sqlite3.connect(DB, timeout=30)
+    db_path = _resolve_db_path()
+    conn = sqlite3.connect(db_path, timeout=30)
     conn.row_factory = sqlite3.Row
     return conn
 
