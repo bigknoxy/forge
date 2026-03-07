@@ -56,8 +56,30 @@ CREATE TABLE IF NOT EXISTS checkpoints (
 
 class Database:
     def __init__(self, db_path: str = None):
+        import tempfile, warnings
         self.path = db_path or DB_PATH
-        os.makedirs(os.path.dirname(self.path), exist_ok=True)
+        dirpath = os.path.dirname(self.path) or '.'
+        # Try to create the configured data dir; if it fails (e.g., permission), fall back to a safe temp dir
+        try:
+            os.makedirs(dirpath, exist_ok=True)
+        except Exception as e:
+            # Fallback location: env override or system temp
+            fallback_dir = os.getenv('FORGE_FALLBACK_DATA_DIR') or os.path.join(tempfile.gettempdir(), 'forge_data')
+            try:
+                os.makedirs(fallback_dir, exist_ok=True)
+                self.path = os.path.join(fallback_dir, os.path.basename(self.path))
+                warnings.warn(f"Could not create data dir {dirpath}, using fallback {fallback_dir}: {e}")
+            except Exception as e2:
+                # Last-resort: use cwd
+                self.path = os.path.join('.', os.path.basename(self.path))
+                warnings.warn(f"Falling back to local db path {self.path}: {e2}")
+        # ensure parent dir exists for final path
+        final_parent = os.path.dirname(self.path)
+        if final_parent:
+            try:
+                os.makedirs(final_parent, exist_ok=True)
+            except Exception:
+                pass
         # set a timeout to avoid 'database is locked' in concurrent access from CLI
         self.conn = sqlite3.connect(self.path, check_same_thread=False, timeout=30)
         self.conn.row_factory = sqlite3.Row

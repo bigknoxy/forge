@@ -61,6 +61,7 @@ Files and locations
 - Runtime:
   - Workspace: /workspace (projects, logs, etc.)
   - Data/DB: /data/forge.db
+  - Fallback DB location: If /data is not writable, FORGE will fall back to a safe temp location. You can override the fallback using the FORGE_FALLBACK_DATA_DIR environment variable before starting the app.
 - CLI: /usr/local/bin/forge (symlink to forge_cli.py)
 - Start wrapper (systemd): /opt/forge/bin/forge-start
 - Systemd unit (if installed): /etc/systemd/system/forge.service
