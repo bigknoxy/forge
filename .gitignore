@@ -60,6 +60,8 @@ htmlcov/
 .env
 .env.local
 .env.*.local
+.env.*
+!.env.example
 
 # local systemd unit copy
 /etc/systemd/system/forge.service
